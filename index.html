@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Daily Work Tracker</title>
+<style>
+:root{--p:#4f46e5;--p2:#6366f1;--bg:#f5f7fb;--card:#fff;--text:#18202f;--muted:#6b7280;--border:#e7eaf0;--green:#16a34a;--orange:#f59e0b;--red:#ef4444;--blue:#2563eb}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at top right,#e9e7ff,transparent 35%),var(--bg)}
+.login-card{width:min(420px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:32px;box-shadow:0 25px 70px #1f29371c}.logo{width:52px;height:52px;border-radius:15px;background:linear-gradient(135deg,var(--p),#8b5cf6);color:#fff;display:grid;place-items:center;font-size:23px;font-weight:800;margin-bottom:18px}.login h1{margin:0;font-size:25px}.login p{color:var(--muted);font-size:13px}.login .field{margin-top:15px}.login-actions{margin-top:20px}.login-actions button{width:100%}.login-note{margin-top:16px;padding:11px;background:#f8f9fc;border-radius:10px;font-size:11px;color:var(--muted)}
+.app{max-width:1500px;margin:auto;padding:24px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.brand h1{margin:0;font-size:26px}.brand p{margin:5px 0;color:var(--muted);font-size:13px}.header-right{display:flex;align-items:center;gap:8px}.pill,.icon-btn,.avatar{background:#fff;border:1px solid var(--border);border-radius:11px;padding:9px 12px}.avatar{width:39px;height:39px;padding:0;background:#111827;color:#fff;display:grid;place-items:center;font-weight:800}
+.controls{background:#fff;border:1px solid var(--border);border-radius:17px;padding:15px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;box-shadow:0 5px 20px #1f29370a}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:11px;color:var(--muted);font-weight:700}.field input,.field select,.field textarea{border:1px solid var(--border);border-radius:10px;padding:10px 12px;outline:none;background:#fff}.field textarea{resize:vertical}.btn{border:1px solid var(--border);background:#fff;padding:10px 13px;border-radius:10px;font-weight:600}.btn.primary{background:var(--p);border-color:var(--p);color:#fff}.btn.danger{color:#b91c1c}.btn.success{color:#15803d}.quick{display:flex;gap:7px;margin-left:auto;flex-wrap:wrap}
+.summary{display:grid;grid-template-columns:1.3fr repeat(4,1fr) 1.1fr;gap:13px;margin:17px 0}.card{background:#fff;border:1px solid var(--border);border-radius:17px;box-shadow:0 5px 20px #1f29370a}.profile{padding:18px;display:flex;gap:13px;align-items:center}.profile-avatar{width:53px;height:53px;border-radius:14px;background:linear-gradient(135deg,var(--p),#8b5cf6);color:#fff;display:grid;place-items:center;font-weight:800}.profile h2{margin:0;font-size:17px}.profile p{margin:4px 0;color:var(--muted);font-size:12px}.stat{padding:16px}.stat small{color:var(--muted);font-size:11px}.stat strong{display:block;font-size:24px;margin-top:5px}.green{color:var(--green)}.orange{color:var(--orange)}.blue{color:var(--blue)}.red{color:var(--red)}.progress-card{padding:14px;display:flex;align-items:center;gap:12px}.ring{width:61px;height:61px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--p) var(--pct),#e9edf5 0);position:relative}.ring:after{content:"";position:absolute;width:45px;height:45px;background:#fff;border-radius:50%}.ring span{position:relative;z-index:1;font-size:11px;font-weight:800}
+.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(320px,.8fr);gap:17px}.section,.side-card,.history{padding:19px}.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.section-head h3,.side-card h3{margin:0;font-size:16px}.muted{color:var(--muted);font-size:12px}.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.search{flex:1;min-width:180px}.search input{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}.task{display:grid;grid-template-columns:24px 1fr auto auto 30px;gap:9px;align-items:center;padding:12px 2px;border-bottom:1px solid #f0f2f6}.task:last-child{border:0}.check{width:18px;height:18px;accent-color:var(--p)}.task-title{font-weight:650;font-size:13px}.task.done .task-title{text-decoration:line-through;color:#9ca3af}.task-meta{font-size:10px;color:var(--muted);margin-top:3px}.badge{font-size:9px;padding:5px 7px;border-radius:999px;font-weight:800}.high{background:#fee2e2;color:#b91c1c}.medium{background:#fef3c7;color:#b45309}.low{background:#dcfce7;color:#15803d}.status{font-size:10px;color:var(--muted);min-width:65px}.dots{background:transparent;border:0;color:#6b7280;font-size:19px}.side-card{margin-bottom:17px}.mini-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f2f6;font-size:12px}.mini-row:last-child{border:0}.eod textarea{width:100%;min-height:70px}.eod .field{margin:0 0 11px}.report{margin-top:17px;padding:19px}.report-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.report-kpi{padding:11px;border:1px solid var(--border);background:#fafbfc;border-radius:11px}.report-kpi small{color:var(--muted)}.report-kpi strong{display:block;margin-top:3px;font-size:19px}.report-list{display:grid;grid-template-columns:1fr 1fr;gap:14px}.report-list h4{margin:0 0 7px;font-size:13px}.report-list ul{margin:0;padding-left:18px;font-size:12px;line-height:1.8;color:#4b5563}.history{margin-top:17px}.table-wrap{overflow:auto}.history table{width:100%;border-collapse:collapse;font-size:12px}.history th,.history td{padding:11px;text-align:left;border-bottom:1px solid #eef0f4;white-space:nowrap}.history th{font-size:10px;color:var(--muted);text-transform:uppercase}
+.admin-overview{margin-top:17px;padding:19px}.employee-row{display:grid;grid-template-columns:1.5fr 1.3fr repeat(4,90px) 90px;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #eef0f4;font-size:12px}.employee-row.head{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase}.employee-row:last-child{border:0}.employee-breakdown{grid-column:1/-1;background:#f8f9fc;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:6px}.employee-breakdown-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.employee-breakdown h4{margin:0 0 6px;font-size:12px}.employee-breakdown ul{margin:0;padding-left:18px;font-size:11px;line-height:1.7}.employee-breakdown p{font-size:11px;color:var(--muted);margin:4px 0}.employee-row details summary{cursor:pointer;color:var(--p);font-size:11px;font-weight:700;margin-top:5px}.employee-row details{margin-top:4px}.employee-name{font-weight:700}.small-stat{font-weight:700}
+.modal-backdrop{position:fixed;inset:0;background:#11182766;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}.modal-backdrop.show{display:flex}.modal{background:#fff;width:min(600px,100%);max-height:91vh;overflow:auto;border-radius:19px;padding:21px;box-shadow:0 25px 80px #0003}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head h3{margin:0}.close{border:0;background:#f3f4f6;width:33px;height:33px;border-radius:9px}.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.full{grid-column:1/-1}.modal-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:16px}.toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:12px 15px;border-radius:11px;display:none;z-index:100}.toast.show{display:block}
+@media(max-width:1100px){.summary{grid-template-columns:1.4fr repeat(3,1fr)}.progress-card{grid-column:span 2}.grid{grid-template-columns:1fr}.employee-row{grid-template-columns:1.5fr 1.2fr repeat(4,70px)}}
+@media(max-width:700px){.app{padding:12px}.header{align-items:flex-start}.header-right .pill{display:none}.summary{grid-template-columns:1fr 1fr}.profile{grid-column:1/-1}.progress-card{grid-column:1/-1}.quick{margin-left:0;width:100%}.task{grid-template-columns:24px 1fr 30px}.task .badge,.task .status{display:none}.report-grid{grid-template-columns:1fr 1fr}.report-list{grid-template-columns:1fr}.modal-grid{grid-template-columns:1fr}.full{grid-column:auto}.employee-row{min-width:720px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login" id="loginScreen">
+  <div class="login-card">
+    <div class="logo">✓</div>
+    <h1>Daily Work Tracker</h1>
+    <p>Sign in to manage and report your daily work.</p>
+    <div class="field"><label>EMAIL / USERNAME</label><input id="loginUser" placeholder="Enter email or admin"></div>
+    <div class="field"><label>PASSWORD</label><input id="loginPass" type="password" placeholder="Enter password"></div>
+    <div class="login-actions"><button class="btn primary" id="loginBtn">Login</button></div>
+    <div class="login-note">Admin login: <b>admin</b> / <b>admin</b><br>Employee passwords are generated automatically when the member is added.</div>
+  </div>
+</div>
+
+<div class="app hidden" id="app">
+<header class="header">
+  <div class="brand"><h1>Daily Work Tracker</h1><p>Team Task & Daily Reporting</p></div>
+  <div class="header-right"><span class="pill" id="rolePill"></span><span class="pill" id="headerDate"></span><button class="icon-btn">🔔</button><div class="avatar" id="topAvatar">A</div><button class="btn" id="logoutBtn">Logout</button></div>
+</header>
+
+<!-- ADMIN / EMPLOYEE CONTROLS -->
+<section class="controls">
+  <div class="field admin-only"><label>SELECT EMPLOYEE</label><select id="employeeSelect"></select></div>
+  <div class="field"><label>DATE</label><input type="date" id="dateSelect"></div>
+  <button class="btn" id="prevBtn">← Previous</button><button class="btn primary" id="todayBtn">Today</button><button class="btn" id="nextBtn">Next →</button>
+  <button class="btn admin-only" id="manageTeamBtn">👥 Manage Team</button>
+  <button class="btn admin-only" id="overallBtn">📊 Overall Team</button>
+  <button class="btn admin-only" id="eodReportsBtn">📝 EOD Reports</button>
+  <div class="quick"><button class="btn primary admin-only" id="addTaskBtn">+ Add Task</button><button class="btn employee-only" id="eodJump">EOD Report</button><button class="btn employee-only" id="pendingJump">Pending Work</button><button class="btn employee-only" id="exportBtn">Export ▾</button><button class="btn admin-only" id="changePassBtn">🔐 Change Password</button></div>
+</section>
+
+<section class="summary" id="summary"></section>
+
+<main class="grid">
+<div>
+<section class="card section" id="taskSection">
+  <div class="section-head"><div><h3>Today's To-Do List</h3><span class="muted" id="taskSub"></span></div><button class="btn primary admin-only" id="addTaskBtn2">+ Add Task</button></div>
+  <div class="filters"><div class="search"><input id="search" placeholder="Search tasks..."></div><select class="btn" id="statusFilter"><option value="all">All</option><option>Completed</option><option>Pending</option><option>In Progress</option><option>Overdue</option></select><select class="btn" id="priorityFilter"><option value="all">All Priority</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+  <div id="taskList"></div>
+</section>
+
+<section class="card section" id="pendingSection" style="margin-top:17px"><div class="section-head"><div><h3>Pending Work</h3><span class="muted">Incomplete tasks that need attention</span></div></div><div id="pendingList"></div></section>
+
+<section class="card section" style="margin-top:17px"><div class="section-head"><div><h3>Tomorrow's Planned Work</h3><span class="muted">Next-day checklist</span></div><button class="btn" id="tomorrowBtn">+ Add</button></div><div id="tomorrowList"></div></section>
+</div>
+
+<aside>
+<section class="card side-card eod employee-only" id="eodSection">
+<h3>End of Day Report</h3>
+<div class="mini-row"><span>Completed Today</span><strong class="green" id="eodCompleted"></strong></div>
+<div class="mini-row"><span>Pending</span><strong class="orange" id="eodPending"></strong></div>
+<div class="mini-row"><span>In Progress</span><strong class="blue" id="eodProgress"></strong></div>
+<div class="field"><label>Additional Work Completed</label><textarea id="additional"></textarea></div>
+<div class="field"><label>Pending Work Reason</label><textarea id="pendingReason"></textarea></div>
+<div class="field"><label>Issues / Blockers</label><textarea id="blockers"></textarea></div>
+<div class="field"><label>Tomorrow's Plan</label><textarea id="tomorrowPlan"></textarea></div>
+<div class="field"><label>Overall Day Status</label><select id="dayStatus"><option>Excellent</option><option>Good</option><option>Average</option><option>Needs Attention</option></select></div>
+<button class="btn primary" id="saveEod" style="width:100%">Save EOD Report</button><p class="muted" id="eodSaved"></p>
+</section>
+<section class="card side-card"><h3>Work Categories</h3><div class="mini-row"><span>Important</span><strong id="importantCount">0</strong></div><div class="mini-row"><span>Regular</span><strong id="regularCount">0</strong></div><div class="mini-row"><span>Additional</span><strong id="additionalCount">0</strong></div></section>
+</aside>
+</main>
+
+<section class="card report"><div class="section-head"><div><h3>Daily Work Report</h3><span class="muted">Selected employee's daily report</span></div><button class="btn primary" id="exportBtn2">Export Report ▾</button></div><div id="reportPreview"></div></section>
+<section class="card history"><div class="section-head"><div><h3>Previous Reports</h3><span class="muted">Historical work summary</span></div></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Total</th><th>Completed</th><th>Pending</th><th>Completion</th><th>EOD</th><th>Action</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
+
+<section class="card admin-overview admin-only hidden" id="teamOverview"><div class="section-head"><div><h3>Overall Team Summary</h3><span class="muted">Everyone's work in one place</span></div><button class="btn primary" id="overallExportBtn">Export Overall Report</button></div><div class="table-wrap"><div class="employee-row head"><div>Employee</div><div>Email</div><div>Total</div><div>Done</div><div>Pending</div><div>In Progress</div><div>%</div></div><div id="teamRows"></div></div></section>
+<section class="card admin-overview admin-only" id="adminReportsPanel">
+  <div class="section-head">
+    <div><h3>Team Reporting Center</h3><span class="muted">All employees' daily reporting, EOD submissions and detailed work summary</span></div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn" id="adminEodExportBtn">📝 Export All EOD</button>
+      <button class="btn primary" id="adminDetailedPdfBtn">🖨 Detailed PDF</button>
+      <button class="btn primary" id="adminDetailedExcelBtn">📊 Detailed Excel</button>
+    </div>
+  </div>
+
+  <div class="report-grid" style="margin-top:10px">
+    <div class="report-kpi"><small>Employees</small><strong id="teamEmpCount">0</strong></div>
+    <div class="report-kpi"><small>Total Tasks</small><strong id="teamTaskCount">0</strong></div>
+    <div class="report-kpi"><small>Completed</small><strong class="green" id="teamDoneCount">0</strong></div>
+    <div class="report-kpi"><small>Team Completion</small><strong id="teamPct">0%</strong></div>
+  </div>
+
+  <div class="section" style="padding:0;box-shadow:none;border:0">
+    <div class="section-head"><h3>Employee-wise Detailed Summary</h3><span class="muted">Click "View" to expand today's complete report</span></div>
+    <div id="detailedTeamReports"></div>
+  </div>
+
+  <div class="section" style="padding:0;box-shadow:none;border:0;margin-top:18px">
+    <div class="section-head"><div><h3>All Employees EOD Reports</h3><span class="muted">Only submitted EOD reports appear here</span></div></div>
+    <div id="allEodReports"></div>
+  </div>
+</section>
+
+</div>
+
+<!-- ADD TASK -->
+<div class="modal-backdrop" id="taskModal"><div class="modal"><div class="modal-head"><h3>Add New Task</h3><button class="close" onclick="closeModal('taskModal')">×</button></div><div class="modal-grid">
+<div class="field full"><label>TASK NAME</label><input id="taskName" placeholder="e.g. Prepare sales report"></div>
+<div class="field full"><label>DESCRIPTION</label><textarea id="taskDescription"></textarea></div>
+<div class="field"><label>PRIORITY</label><select id="taskPriority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+<div class="field"><label>STATUS</label><select id="taskStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option></select></div>
+<div class="field"><label>DUE TIME</label><input type="time" id="taskDueTime"></div>
+<div class="field"><label>CATEGORY</label><select id="taskCategory"><option>Important</option><option>Regular</option><option>Additional</option></select></div>
+<div class="field"><label>ESTIMATED TIME</label><input id="taskEstimate" placeholder="e.g. 1 hr"></div>
+<div class="field"><label>RECURRING</label><select id="recurring"><option>No</option><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
+<div class="field full"><label>NOTES</label><textarea id="taskNotes"></textarea></div></div>
+<div class="modal-actions"><button class="btn" onclick="closeModal('taskModal')">Cancel</button><button class="btn primary" id="saveTask">Add Task</button></div></div></div>
+
+<!-- DETAIL -->
+<div class="modal-backdrop" id="detailModal"><div class="modal"><div class="modal-head"><h3>Task Details</h3><button class="close" onclick="closeModal('detailModal')">×</button></div><div id="detailContent"></div></div></div>
+
+<!-- TEAM -->
+<div class="modal-backdrop" id="teamModal"><div class="modal"><div class="modal-head"><div><h3>Manage Team Members</h3><p class="muted">Add employee email and the system will generate the default password.</p></div><button class="close" onclick="closeModal('teamModal')">×</button></div>
+<div style="background:#fafbff;border:1px solid var(--border);border-radius:13px;padding:13px;margin-bottom:14px"><div class="modal-grid">
+<div class="field"><label>FULL NAME</label><input id="newMemberName" placeholder="Rahul Sharma"></div>
+<div class="field"><label>DESIGNATION</label><input id="newMemberRole" placeholder="Sales Executive"></div>
+<div class="field full"><label>EMAIL ID</label><input id="newMemberEmail" type="email" placeholder="rahul@company.com"></div>
+<div class="field full"><button class="btn primary" id="addMemberBtn" style="width:100%">+ Add Team Member</button></div></div></div>
+<div id="teamMemberList"></div></div></div>
+
+<!-- CHANGE PASSWORD -->
+<div class="modal-backdrop" id="passModal"><div class="modal"><div class="modal-head"><h3>Change Admin Password</h3><button class="close" onclick="closeModal('passModal')">×</button></div><div class="field"><label>CURRENT PASSWORD</label><input type="password" id="currentPass"></div><div class="field" style="margin-top:12px"><label>NEW PASSWORD</label><input type="password" id="newPass"></div><div class="field" style="margin-top:12px"><label>CONFIRM NEW PASSWORD</label><input type="password" id="confirmPass"></div><div class="modal-actions"><button class="btn" onclick="closeModal('passModal')">Cancel</button><button class="btn primary" id="savePass">Change Password</button></div></div></div>
+
+<!-- EXPORT -->
+<div class="modal-backdrop" id="exportModal"><div class="modal"><div class="modal-head"><h3>Export Report</h3><button class="close" onclick="closeModal('exportModal')">×</button></div><p class="muted">Export the current employee report.</p><div style="display:grid;gap:9px"><button class="btn" onclick="printReport()">🖨 Print / Save as PDF</button><button class="btn" onclick="exportCSV()">📋 Export CSV</button><button class="btn" onclick="exportExcel()">📊 Export Excel (XLSX)</button></div></div></div>
+
+
+<div class="modal-backdrop" id="overallExportModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>Overall Team Report</h3><p class="muted">All employees' work for the selected date.</p></div>
+      <button class="close" onclick="closeModal('overallExportModal')">×</button>
+    </div>
+    <div style="display:grid;gap:9px">
+      <button class="btn" onclick="printOverallReport()">🖨 Print / Save Overall PDF</button>
+      <button class="btn" onclick="exportOverallCSV()">📋 Export Overall CSV</button>
+      <button class="btn primary" onclick="exportOverallXLSX()">📊 Export Overall Excel (XLSX)</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const DEFAULT_EMPLOYEES=[
+{id:1,name:"Rahul Sharma",role:"Sales Executive",email:"rahul@company.com",tasks:[
+["Update CRM","Medium","Completed","09:30","Regular"],["Call pending clients","High","In Progress","11:00","Important"],["Prepare sales report","High","Completed","13:00","Important"],["Send quotation","Medium","Not Started","15:30","Regular"],["Follow up with leads","Low","Not Started","17:00","Additional"],["Client Proposal","High","Not Started","18:00","Important"],["Email follow-up","Low","Completed","16:00","Regular"],["Documentation","Low","Completed","17:30","Additional"],["Data entry","Medium","In Progress","18:00","Regular"],["Weekly pipeline update","Medium","Completed","16:30","Important"],["Team coordination","Low","Completed","17:15","Regular"],["Tomorrow planning","Low","Not Started","18:30","Additional"]]},
+{id:2,name:"Amit Verma",role:"Business Development",email:"amit@company.com",tasks:[["Lead research","High","Completed","10:00","Important"],["Client follow-up","High","Completed","12:00","Important"],["CRM update","Medium","In Progress","14:00","Regular"],["Proposal draft","High","Not Started","16:00","Important"],["Email campaign","Medium","Not Started","17:00","Regular"]]},
+{id:3,name:"Neha Gupta",role:"Operations Executive",email:"neha@company.com",tasks:[["Daily operations report","High","Completed","10:30","Important"],["Vendor coordination","Medium","Completed","12:00","Regular"],["Invoice verification","High","In Progress","15:00","Important"],["Data reconciliation","Medium","Not Started","17:00","Regular"]]},
+{id:4,name:"Priya Singh",role:"HR Executive",email:"priya@company.com",tasks:[["Attendance review","High","Completed","11:00","Important"],["Employee follow-up","Medium","Completed","13:00","Regular"],["HR documentation","Low","Not Started","16:00","Additional"],["Payroll coordination","High","In Progress","17:00","Important"]]},
+{id:5,name:"Rohit Meena",role:"Marketing Executive",email:"rohit@company.com",tasks:[["Social media calendar","High","Completed","10:00","Important"],["Content planning","Medium","In Progress","13:00","Regular"],["Campaign report","High","Not Started","16:00","Important"],["Creative coordination","Low","Completed","17:00","Additional"]]}
+];
+
+const TEAM_KEY="dwt_team_v4", DATA_KEY="dwt_data_v4", ADMIN_KEY="dwt_admin_v4";
+let employees=load(TEAM_KEY,DEFAULT_EMPLOYEES);
+let extra=load(DATA_KEY,{});
+let admin=load(ADMIN_KEY,{username:"admin",password:"admin"});
+employees.forEach(e=>{if(!e.password)e.password=defaultPassword(e.name);});
+localStorage.setItem(TEAM_KEY,JSON.stringify(employees));
+let selected=0,selectedDate=new Date(),currentUser=null;
+
+function load(k,f){try{let x=JSON.parse(localStorage.getItem(k));return x??f}catch(e){return f}}
+function persist(){localStorage.setItem(TEAM_KEY,JSON.stringify(employees));localStorage.setItem(DATA_KEY,JSON.stringify(extra));localStorage.setItem(ADMIN_KEY,JSON.stringify(admin))}
+function fmt(d){return d.toISOString().slice(0,10)}
+function pretty(d){return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function initials(n){return n.split(" ").map(x=>x[0]).join("").slice(0,2)}
+function defaultPassword(name){let parts=name.trim().split(/\s+/);let first=(parts[0]||"").slice(0,2);let last=(parts.length>1?parts[parts.length-1]:parts[0]).slice(-2);return first+last}
+function dayKey(emp,date){return emp.id+"_"+fmt(date)}
+function getData(emp=employees[selected],date=selectedDate){
+ let k=dayKey(emp,date);
+ if(!extra[k]){
+  extra[k]={tasks:(emp.tasks||[]).map((x,i)=>({id:i+1,title:x[0],priority:x[1],status:x[2],due:x[3],category:x[4],description:"Work task",notes:""})),tomorrow:["Prepare presentation","Client follow-up","Update database","Send quotation"],eod:{}};
+  persist();
+ }
+ return extra[k];
+}
+function isAdmin(){return currentUser?.role==="admin"}
+function currentEmp(){return employees.find(e=>e.id===currentUser?.employeeId)||employees[selected]}
+
+function doLogin(){
+ let u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;
+ if(u.toLowerCase()===admin.username.toLowerCase()&&p===admin.password){currentUser={role:"admin",name:"Administrator"};selected=-1;showApp();return}
+ let e=employees.find(x=>x.email?.toLowerCase()===u.toLowerCase());
+ if(e){
+   const employeePassword=e.password||defaultPassword(e.name);
+   if(p===employeePassword){
+     e.password=employeePassword;persist();
+     currentUser={role:"employee",employeeId:e.id,name:e.name};
+     selected=employees.findIndex(x=>x.id===e.id);
+     selectedDate=new Date();
+     showApp();return
+   }
+ }
+ showToast("Invalid email/username or password");
+}
+function showApp(){
+ document.getElementById("loginScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
+ document.getElementById("rolePill").textContent=isAdmin()?"ADMIN":"EMPLOYEE";document.getElementById("topAvatar").textContent=initials(currentUser.name);
+ document.getElementById("employeeSelect").disabled=!isAdmin();
+ document.querySelectorAll(".admin-only").forEach(x=>x.classList.toggle("hidden",!isAdmin()));
+document.querySelectorAll(".employee-only").forEach(x=>x.classList.toggle("hidden",isAdmin()));
+ document.querySelectorAll(".employee-only").forEach(x=>x.classList.toggle("hidden",isAdmin()));
+ document.getElementById("changePassBtn").classList.toggle("hidden",!isAdmin());
+ document.getElementById("dateSelect").value=fmt(selectedDate);refreshSelect();if(isAdmin()){showAdminReports();}else{render();}renderTeamOverview();
+}
+function logout(){currentUser=null;document.getElementById("app").classList.add("hidden");document.getElementById("loginScreen").classList.remove("hidden");document.getElementById("loginPass").value=""}
+function refreshSelect(){
+  let s=document.getElementById("employeeSelect");
+  s.innerHTML=`<option value="-1">All Employees</option>`+employees.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join("");
+  s.value=selected;
+}
+
+function render(){
+ if(isAdmin() && selected===-1){showAdminReports();return;}
+ let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),ts=d.tasks,done=ts.filter(t=>t.status==="Completed").length,pend=ts.filter(t=>t.status!=="Completed").length,ip=ts.filter(t=>t.status==="In Progress").length,pct=ts.length?Math.round(done/ts.length*100):0;
+ document.getElementById("headerDate").textContent=pretty(selectedDate);document.getElementById("dateSelect").value=fmt(selectedDate);
+ document.getElementById("summary").innerHTML=`<div class="card profile"><div class="profile-avatar">${initials(emp.name)}</div><div><h2>${esc(emp.name)}</h2><p>${esc(emp.role)} · ${esc(emp.email||"")}</p><p style="margin-top:7px"><b>Today's Work Summary</b></p></div></div><div class="card stat"><small>Total Tasks</small><strong>${ts.length}</strong></div><div class="card stat"><small>Completed</small><strong class="green">${done}</strong></div><div class="card stat"><small>Pending</small><strong class="orange">${pend}</strong></div><div class="card stat"><small>In Progress</small><strong class="blue">${ip}</strong></div><div class="card progress-card"><div class="ring" style="--pct:${pct}%"><span>${pct}%</span></div><div><b>Completion</b><br><small class="muted">${d.eod.submitted?"🟢 EOD Submitted":"🟠 EOD Pending"}</small></div></div>`;
+ document.getElementById("taskSub").textContent=`${ts.length} tasks · ${done} completed`;renderTasks();renderPending();renderTomorrow();renderEod();renderReport();renderHistory();renderTeamOverview();
+}
+function renderTasks(){
+ let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),q=document.getElementById("search").value.toLowerCase(),sf=document.getElementById("statusFilter").value,pf=document.getElementById("priorityFilter").value;
+ let arr=d.tasks.filter(t=>(!q||t.title.toLowerCase().includes(q))&&(sf==="all"||t.status===sf)&&(pf==="all"||t.priority===pf));
+ document.getElementById("taskList").innerHTML=arr.length?arr.map(t=>{let i=d.tasks.indexOf(t);return `<div class="task ${t.status==="Completed"?"done":""}"><input class="check" type="checkbox" ${t.status==="Completed"?"checked":""} onchange="toggleTask(${i})"><div onclick="openDetail(${i})" style="cursor:pointer"><div class="task-title">${esc(t.title)}</div><div class="task-meta">${esc(t.category)} · Due ${esc(t.due||"—")}</div></div><span class="badge ${t.priority==="High"?"high":t.priority==="Medium"?"medium":"low"}">${t.priority}</span><span class="status">${t.status}</span><button class="dots" onclick="openDetail(${i})">⋮</button></div>`}).join(""):`<div class="muted" style="padding:25px;text-align:center">No tasks found.</div>`;
+}
+function renderPending(){let d=getData(isAdmin()?employees[selected]:currentEmp()),arr=d.tasks.filter(t=>t.status!=="Completed");document.getElementById("pendingList").innerHTML=arr.length?arr.map(t=>`<div class="mini-row"><span><b>${esc(t.title)}</b><br><small class="muted">Due ${esc(t.due||"—")} · ${t.priority}</small></span><button class="btn" onclick="completeTask(${d.tasks.indexOf(t)})">Complete</button></div>`).join(""):`<div class="muted">No pending work 🎉</div>`}
+function renderTomorrow(){let d=getData(isAdmin()?employees[selected]:currentEmp());document.getElementById("tomorrowList").innerHTML=d.tomorrow.map((x,i)=>`<div class="mini-row"><span>☐ ${esc(x)}</span><button class="btn danger" onclick="removeTomorrow(${i})">Remove</button></div>`).join("")}
+function renderEod(){let d=getData(isAdmin()?employees[selected]:currentEmp()),ts=d.tasks;document.getElementById("eodCompleted").textContent=ts.filter(t=>t.status==="Completed").length+" Tasks";document.getElementById("eodPending").textContent=ts.filter(t=>t.status!=="Completed").length+" Tasks";document.getElementById("eodProgress").textContent=ts.filter(t=>t.status==="In Progress").length+" Tasks";let e=d.eod||{};["additional","pendingReason","blockers","tomorrowPlan"].forEach(k=>document.getElementById(k).value=e[k]||"");document.getElementById("dayStatus").value=e.status||"Excellent";document.getElementById("eodSaved").textContent=e.submitted?"🟢 Submitted at "+e.time:""}
+function renderReport(){let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pen=ts.filter(t=>t.status!=="Completed"),pct=ts.length?Math.round(done.length/ts.length*100):0,e=d.eod||{};document.getElementById("reportPreview").innerHTML=`<div class="report-grid"><div class="report-kpi"><small>Employee</small><strong style="font-size:14px">${esc(emp.name)}</strong></div><div class="report-kpi"><small>Total</small><strong>${ts.length}</strong></div><div class="report-kpi"><small>Completed</small><strong class="green">${done.length}</strong></div><div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div></div><div class="report-list"><div><h4>Completed Work</h4><ul>${done.map(t=>`<li>${esc(t.title)}</li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Pending / In Progress</h4><ul>${pen.map(t=>`<li>${esc(t.title)} — ${t.status}</li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Additional Work</h4><p class="muted">${esc(e.additional||"No additional work recorded.")}</p></div><div><h4>Pending Work Reason</h4><p class="muted">${esc(e.pendingReason||"No pending reason recorded.")}</p></div><div><h4>Issues / Blockers</h4><p class="muted">${esc(e.blockers||"No blockers recorded.")}</p></div><div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e.tomorrowPlan||d.tomorrow.join(", ")||"No plan added.")}</p></div><div><h4>Day Status</h4><p><b>${esc(e.status||"Not submitted")}</b></p><p class="muted">${e.submitted?"Submitted at "+esc(e.time||""):"EOD not submitted"}</p></div></div>`}
+function renderHistory(){let emp=isAdmin()?employees[selected]:currentEmp(),rows=[];for(let n=0;n<5;n++){let dt=new Date(selectedDate);dt.setDate(dt.getDate()-n);let x=extra[dayKey(emp,dt)],total=x?.tasks?.length||[12,10,14,9,11][n],done=x?x.tasks.filter(t=>t.status==="Completed").length:[7,9,10,8,7][n],pend=total-done,p=Math.round(done/total*100);rows.push(`<tr><td>${pretty(dt)}</td><td>${total}</td><td class="green">${done}</td><td class="orange">${pend}</td><td>${p}%</td><td>${x?.eod?.submitted?"🟢 Submitted":"—"}</td><td><button class="btn" onclick="loadHistory(${n})">View</button></td></tr>`)}document.getElementById("historyBody").innerHTML=rows.join("")}
+function loadHistory(n){selectedDate=new Date(selectedDate);selectedDate.setDate(selectedDate.getDate()-n);render();window.scrollTo({top:0,behavior:"smooth"})}
+function renderTeamOverview(){
+ if(!isAdmin())return;
+ document.getElementById("teamRows").innerHTML=employees.map((e,i)=>{
+   let d=getData(e,selectedDate),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pend=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress"),p=ts.length?Math.round(done.length/ts.length*100):0,eod=d.eod||{};
+   const completedList=done.length?done.map(t=>`<li>${esc(t.title)}</li>`).join(""):"<li>None</li>";
+   const pendingList=pend.length?pend.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join(""):"<li>None</li>";
+   return `<div class="employee-row">
+     <div class="employee-name">
+       ${esc(e.name)}<br><small class="muted">${esc(e.role)}</small>
+       <details><summary>View Today's Detailed Report</summary>
+         <div class="employee-breakdown">
+           <div class="employee-breakdown-grid">
+             <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
+             <div><h4>Pending / In Progress (${pend.length})</h4><ul>${pendingList}</ul></div>
+             <div><h4>EOD Report</h4>
+               <p><b>Status:</b> ${eod.submitted?"Submitted":"Not Submitted"}</p>
+               <p><b>Day Status:</b> ${esc(eod.status||"—")}</p>
+               <p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p>
+               <p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p>
+               <p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p>
+               <p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p>
+               <p><b>Submitted:</b> ${esc(eod.time||"—")}</p>
+             </div>
+           </div>
+         </div>
+       </details>
+     </div>
+     <div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pend.length}</div><div class="blue">${ip.length}</div><div><b>${p}%</b></div>
+   </div>`
+ }).join("")
+}
+function toggleTask(i){let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),t=d.tasks[i];t.status=t.status==="Completed"?"Not Started":"Completed";persist();render();showToast(t.status==="Completed"?"Task completed":"Task reopened")}
+function completeTask(i){let emp=isAdmin()?employees[selected]:currentEmp();getData(emp).tasks[i].status="Completed";persist();render();showToast("Task completed")}
+function openDetail(i){let emp=isAdmin()?employees[selected]:currentEmp(),t=getData(emp).tasks[i];document.getElementById("detailContent").innerHTML=`<div class="modal-grid"><div class="field full"><label>TASK</label><h3 style="margin:0">${esc(t.title)}</h3></div><div class="field"><label>PRIORITY</label><span>${t.priority}</span></div><div class="field"><label>STATUS</label><span>${t.status}</span></div><div class="field"><label>DUE</label><span>${esc(t.due||"—")}</span></div><div class="field"><label>CATEGORY</label><span>${esc(t.category)}</span></div><div class="field full"><label>DESCRIPTION</label><p class="muted">${esc(t.description)}</p></div><div class="field full"><label>NOTES</label><p class="muted">${esc(t.notes||"No notes.")}</p></div></div><div class="modal-actions">${isAdmin()?`<button class="btn danger" onclick="deleteTask(${i})">Delete</button>`:""}<button class="btn" onclick="moveTomorrow(${i})">Move to Tomorrow</button><button class="btn success" onclick="completeTask(${i});closeModal('detailModal')">Mark Complete</button></div>`;document.getElementById("detailModal").classList.add("show")}
+function deleteTask(i){if(!confirm("Delete this task?"))return;let emp=isAdmin()?employees[selected]:currentEmp();getData(emp).tasks.splice(i,1);persist();closeModal("detailModal");render();showToast("Task deleted")}
+function moveTomorrow(i){let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp);d.tomorrow.push(d.tasks[i].title);d.tasks.splice(i,1);persist();closeModal("detailModal");render();showToast("Moved to tomorrow")}
+function openTaskModal(){if(!isAdmin())return showToast("Only admin can assign new tasks");["taskName","taskDescription","taskDueTime","taskEstimate","taskNotes"].forEach(x=>document.getElementById(x).value="");document.getElementById("taskPriority").value="Medium";document.getElementById("taskStatus").value="Not Started";document.getElementById("taskCategory").value="Regular";document.getElementById("recurring").value="No";document.getElementById("taskModal").classList.add("show")}
+function saveTask(){let name=document.getElementById("taskName").value.trim();if(!name)return showToast("Please enter a task name");let d=getData(employees[selected]);d.tasks.push({id:Date.now(),title:name,description:document.getElementById("taskDescription").value,priority:document.getElementById("taskPriority").value,status:document.getElementById("taskStatus").value,due:document.getElementById("taskDueTime").value,category:document.getElementById("taskCategory").value,notes:document.getElementById("taskNotes").value});persist();closeModal("taskModal");render();showToast("Task added")}
+function saveEod(){if(isAdmin())return showToast("EOD is submitted by employees only");let emp=currentEmp(),d=getData(emp);d.eod={additional:document.getElementById("additional").value,pendingReason:document.getElementById("pendingReason").value,blockers:document.getElementById("blockers").value,tomorrowPlan:document.getElementById("tomorrowPlan").value,status:document.getElementById("dayStatus").value,submitted:true,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})};persist();render();showToast("EOD report saved")}
+function addTomorrow(){let x=prompt("Enter tomorrow's task:");if(x?.trim()){let emp=isAdmin()?employees[selected]:currentEmp();getData(emp).tomorrow.push(x.trim());persist();render();showToast("Tomorrow task added")}}
+function removeTomorrow(i){let emp=isAdmin()?employees[selected]:currentEmp();getData(emp).tomorrow.splice(i,1);persist();render()}
+function moveDate(n){selectedDate=new Date(selectedDate);selectedDate.setDate(selectedDate.getDate()+n);render()}
+function openTeam(){renderTeamMembers();document.getElementById("teamModal").classList.add("show")}
+function renderTeamMembers(){document.getElementById("teamMemberList").innerHTML=employees.map((e,i)=>`<div class="mini-row"><div><b>${esc(e.name)}</b><br><small class="muted">${esc(e.role)} · ${esc(e.email||"")}</small></div><div style="display:flex;gap:6px;align-items:center"><span class="muted">Default: <b>${esc(e.password||defaultPassword(e.name))}</b></span><button class="btn danger" onclick="deleteMember(${i})">Delete</button></div></div>`).join("")}
+function addMember(){let name=document.getElementById("newMemberName").value.trim(),role=document.getElementById("newMemberRole").value.trim()||"Team Member",email=document.getElementById("newMemberEmail").value.trim().toLowerCase();if(!name||!email)return showToast("Name and email are required");if(employees.some(e=>e.email?.toLowerCase()===email))return showToast("Email already exists");let pass=defaultPassword(name);employees.push({id:Date.now(),name,role,email,password:pass,tasks:[]});persist();refreshSelect();renderTeamMembers();document.getElementById("newMemberName").value="";document.getElementById("newMemberRole").value="";document.getElementById("newMemberEmail").value="";showToast(name+" added. Password: "+pass)}
+function deleteMember(i){if(employees.length===1)return showToast("At least one member is required");let e=employees[i];if(!confirm("Delete "+e.name+" and their task data?"))return;employees.splice(i,1);selected=Math.min(selected,employees.length-1);Object.keys(extra).filter(k=>k.startsWith(e.id+"_")).forEach(k=>delete extra[k]);persist();refreshSelect();renderTeamMembers();render();showToast(e.name+" deleted")}
+function changePassword(){document.getElementById("passModal").classList.add("show")}
+function savePassword(){let c=document.getElementById("currentPass").value,n=document.getElementById("newPass").value,cn=document.getElementById("confirmPass").value;if(c!==admin.password)return showToast("Current password is incorrect");if(!n||n.length<4)return showToast("New password must be at least 4 characters");if(n!==cn)return showToast("Passwords do not match");admin.password=n;persist();closeModal("passModal");["currentPass","newPass","confirmPass"].forEach(x=>document.getElementById(x).value="");showToast("Admin password changed")}
+function reportData(emp){let d=getData(emp),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed");return {emp,d,ts,done,pending,pct:ts.length?Math.round(done.length/ts.length*100):0}}
+function openExport(){document.getElementById("exportModal").classList.add("show")}
+function csvEscape(v){
+  return `"${String(v??"").replace(/"/g,'""')}"`;
+}
+function rowsToCSV(rows){
+  return rows.map(row=>row.map(csvEscape).join(",")).join("\r\n");
+}
+function exportCSV(){
+  const r=reportData(isAdmin()?employees[selected]:currentEmp());
+  const rows=[
+    ["DAILY WORK REPORT"],["Employee",r.emp.name],["Email",r.emp.email||""],["Date",pretty(selectedDate)],
+    ["Total Tasks",r.ts.length],["Completed",r.done.length],["Pending",r.pending.length],["Completion",r.pct+"%"],[],
+    ["Task","Priority","Status","Due Time","Category"],
+    ...r.ts.map(x=>[x.title,x.priority,x.status,x.due||"",x.category]),
+    [],["Additional Work",r.d.additional||""],["Pending Work Reason",r.d.pendingReason||""],
+    ["Issues / Blockers",r.d.blockers||""],["Tomorrow's Plan",r.d.tomorrowPlan||""]
+  ];
+  download(rowsToCSV(rows),"daily-work-report.csv","text/csv;charset=utf-8");
+  closeModal("exportModal");
+}
+
+function styleRange(ws, range, style){
+  if(!window.XLSX) return;
+  const R=XLSX.utils.decode_range(range);
+  for(let r=R.s.r;r<=R.e.r;r++){
+    for(let c=R.s.c;c<=R.e.c;c++){
+      const cell=ws[XLSX.utils.encode_cell({r,c})];
+      if(cell) cell.s=style;
+    }
+  }
+}
+const XLS_STYLES={
+  title:{font:{name:"Calibri",sz:18,bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"4F46E5"}},alignment:{horizontal:"center",vertical:"center"}},
+  section:{font:{name:"Calibri",sz:12,bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"6366F1"}},alignment:{horizontal:"left",vertical:"center"}},
+  header:{font:{name:"Calibri",sz:11,bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"4F46E5"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{bottom:{style:"thin",color:{rgb:"D1D5DB"}}}},
+  body:{font:{name:"Calibri",sz:11,color:{rgb:"18202F"}},alignment:{vertical:"center",wrapText:true},border:{bottom:{style:"thin",color:{rgb:"E5E7EB"}}}},
+  center:{font:{name:"Calibri",sz:11,color:{rgb:"18202F"}},alignment:{horizontal:"center",vertical:"center",wrapText:true}},
+  kpiLabel:{font:{name:"Calibri",sz:10,color:{rgb:"6B7280"}},fill:{fgColor:{rgb:"F8F9FC"}},alignment:{horizontal:"center",vertical:"center"}},
+  kpiValue:{font:{name:"Calibri",sz:15,bold:true,color:{rgb:"18202F"}},fill:{fgColor:{rgb:"F8F9FC"}},alignment:{horizontal:"center",vertical:"center"}}
+};
+
+function makeIndividualWorkbook(){
+  const r=reportData(isAdmin()?employees[selected]:currentEmp());
+  const wb=XLSX.utils.book_new();
+  const rows=[
+    ["DAILY WORK REPORT"],[],
+    ["Employee",r.emp.name,"Email",r.emp.email||""],
+    ["Date",pretty(selectedDate),"Role",r.emp.role||""],[],
+    ["Total Tasks",r.ts.length,"Completed",r.done.length,"Pending",r.pending.length,"Completion",r.pct+"%"],[],
+    ["TASK DETAILS"],[],
+    ["Task","Priority","Status","Due Time","Category","Description","Notes"],
+    ...r.ts.map(x=>[x.title,x.priority,x.status,x.due||"",x.category,x.description||"",x.notes||""]),
+    [],
+    ["END OF DAY REPORT"],[],
+    ["Additional Work Completed",r.d.additional||""],
+    ["Pending Work Reason",r.d.pendingReason||""],
+    ["Issues / Blockers",r.d.blockers||""],
+    ["Tomorrow's Plan",r.d.tomorrowPlan||""],
+    ["Overall Day Status",r.d.status||"Not submitted"],
+    [],
+    ["TOMORROW'S PLANNED WORK"],[],
+    ["Task"],...r.d.tomorrow.map(x=>[x])
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!merges"]=[
+    {s:{r:0,c:0},e:{r:0,c:7}},
+    {s:{r:8,c:0},e:{r:8,c:6}},
+    {s:{r:12,c:0},e:{r:12,c:7}},
+    {s:{r:20,c:0},e:{r:20,c:7}}
+  ];
+  ws["!cols"]=[{wch:30},{wch:13},{wch:16},{wch:13},{wch:16},{wch:38},{wch:38},{wch:16}];
+  ws["!rows"]=[{hpt:28}];
+  styleRange(ws,"A1:H1",XLS_STYLES.title);
+  styleRange(ws,"A9:G9",XLS_STYLES.section);
+  styleRange(ws,"A11:G11",XLS_STYLES.header);
+  styleRange(ws,"A15:H15",XLS_STYLES.section);
+  styleRange(ws,"A23:H23",XLS_STYLES.section);
+  // Body + KPI
+  const endRow=rows.length;
+  styleRange(ws,`A2:H${endRow}`,XLS_STYLES.body);
+  styleRange(ws,"A6:H6",XLS_STYLES.kpiValue);
+  ws["!freeze"]={xSplit:0,ySplit:11};
+  XLSX.utils.book_append_sheet(wb,ws,"Daily Report");
+  return wb;
+}
+function exportExcel(){
+  if(!window.XLSX){showToast("Excel library is still loading. Please try again.");return}
+  const wb=makeIndividualWorkbook();
+  XLSX.writeFile(wb,`daily-work-report-${(isAdmin()?employees[selected]:currentEmp()).name.replace(/\s+/g,"-")}-${fmt(selectedDate)}.xlsx`);
+  closeModal("exportModal");showToast("Formatted Excel report exported");
+}
+
+function overallRows(){
+  const rows=[["OVERALL TEAM REPORT"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
+  let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
+  employees.forEach(e=>{
+    const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;
+    grandTotal+=r.ts.length;grandDone+=r.done.length;grandPending+=r.pending.length;grandProgress+=ip;
+    rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"]);
+  });
+  rows.push([],["TEAM TOTAL","","",grandTotal,grandDone,grandPending,grandProgress,grandTotal?Math.round(grandDone/grandTotal*100)+"%":"0%",""]);
+  return {rows,grandTotal,grandDone,grandPending,grandProgress};
+}
+function exportOverallCSV(){
+ if(!isAdmin())return;
+ const rows=[["OVERALL TEAM REPORT"],["Date",pretty(selectedDate)],[],["TEAM SUMMARY"],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
+ employees.forEach(e=>{const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"])});
+ rows.push([],["DETAILED TASK REPORT"],["Employee","Email","Task","Priority","Status","Due Time","Category"]);
+ employees.forEach(e=>{const r=reportData(e);r.ts.forEach(t=>rows.push([e.name,e.email||"",t.title,t.priority,t.status,t.due||"",t.category||""]))});
+ rows.push([],["EOD REPORTS"],["Employee","Email","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status","Submitted At"]);
+ employees.forEach(e=>{const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted",d.eod?.time||""])});
+ download(rowsToCSV(rows),"overall-team-report.csv","text/csv;charset=utf-8");closeModal("overallExportModal");showToast("Detailed overall CSV exported")
+}
+function makeOverallWorkbook(){
+  const x=overallRows(),wb=XLSX.utils.book_new();
+  const summary=XLSX.utils.aoa_to_sheet(x.rows);
+  summary["!merges"]=[{s:{r:0,c:0},e:{r:0,c:8}}];
+  summary["!cols"]=[{wch:24},{wch:30},{wch:24},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:16}];
+  styleRange(summary,"A1:I1",XLS_STYLES.title);
+  styleRange(summary,"A5:I5",XLS_STYLES.header);
+  styleRange(summary,`A6:I${x.rows.length}`,XLS_STYLES.body);
+  const totalRow=x.rows.length;
+  styleRange(summary,`A${totalRow}:I${totalRow}`,XLS_STYLES.section);
+  summary["!freeze"]={xSplit:0,ySplit:5};
+  XLSX.utils.book_append_sheet(wb,summary,"Overall Summary");
+
+  const taskRows=[["ALL TEAM TASK DETAILS"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Task","Priority","Status","Due Time","Category","Additional Work","Pending Reason","Blockers","Tomorrow Plan"]];
+  employees.forEach(e=>{
+    const r=reportData(e),d=r.d;
+    r.ts.forEach(t=>taskRows.push([e.name,e.email||"",e.role||"",t.title,t.priority,t.status,t.due||"",t.category,d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||""]));
+  });
+  const details=XLSX.utils.aoa_to_sheet(taskRows);
+  details["!merges"]=[{s:{r:0,c:0},e:{r:0,c:11}}];
+  details["!cols"]=[{wch:22},{wch:28},{wch:22},{wch:34},{wch:12},{wch:15},{wch:12},{wch:15},{wch:30},{wch:30},{wch:30},{wch:30}];
+  styleRange(details,"A1:L1",XLS_STYLES.title);styleRange(details,"A5:L5",XLS_STYLES.header);styleRange(details,`A6:L${taskRows.length}`,XLS_STYLES.body);
+  details["!freeze"]={xSplit:0,ySplit:5};
+  XLSX.utils.book_append_sheet(wb,details,"All Tasks");
+
+  const eodRows=[["TEAM EOD REPORTS"],[],["Employee","Email","Date","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status"]];
+  employees.forEach(e=>{
+    const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;
+    eodRows.push([e.name,e.email||"",pretty(selectedDate),r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted"]);
+  });
+  const eod=XLSX.utils.aoa_to_sheet(eodRows);
+  eod["!merges"]=[{s:{r:0,c:0},e:{r:0,c:11}}];
+  eod["!cols"]=[{wch:22},{wch:28},{wch:16},{wch:13},{wch:13},{wch:13},{wch:16},{wch:32},{wch:32},{wch:32},{wch:32},{wch:18}];
+  styleRange(eod,"A1:L1",XLS_STYLES.title);styleRange(eod,"A3:L3",XLS_STYLES.header);styleRange(eod,`A4:L${eodRows.length}`,XLS_STYLES.body);
+  XLSX.utils.book_append_sheet(wb,eod,"EOD Reports");
+
+  const breakdownRows=[["TODAY'S EMPLOYEE BREAKDOWN"],[],["Employee","Email","Designation","Completed Work","Pending / In Progress","Additional Work","Pending Reason","Blockers","Tomorrow Plan","EOD Status","Submitted At"]];
+  employees.forEach(e=>{
+    const r=reportData(e),d=r.d,eod=d.eod||{};
+    const doneText=r.done.map(t=>t.title).join(" | ")||"None";
+    const pendingText=r.pending.map(t=>t.title+" ("+t.status+")").join(" | ")||"None";
+    breakdownRows.push([e.name,e.email||"",e.role||"",doneText,pendingText,eod.additional||"",eod.pendingReason||"",eod.blockers||"",eod.tomorrowPlan||d.tomorrow.join(" | "),eod.submitted?"Submitted":"Not Submitted",eod.time||""]);
+  });
+  const breakdown=XLSX.utils.aoa_to_sheet(breakdownRows);
+  breakdown["!merges"]=[{s:{r:0,c:0},e:{r:0,c:10}}];
+  breakdown["!cols"]=[{wch:22},{wch:28},{wch:22},{wch:48},{wch:48},{wch:35},{wch:35},{wch:35},{wch:35},{wch:16},{wch:16}];
+  styleRange(breakdown,"A1:K1",XLS_STYLES.title);styleRange(breakdown,"A3:K3",XLS_STYLES.header);styleRange(breakdown,`A4:K${breakdownRows.length}`,XLS_STYLES.body);
+  breakdown["!freeze"]={xSplit:0,ySplit:3};
+  XLSX.utils.book_append_sheet(wb,breakdown,"Daily Breakdown");
+
+  return wb;
+}
+function exportOverallXLSX(){
+  if(!isAdmin())return;
+  if(!window.XLSX){showToast("Excel library is still loading. Please try again.");return}
+  const wb=makeOverallWorkbook();
+  XLSX.writeFile(wb,`overall-team-report-${fmt(selectedDate)}.xlsx`);
+  closeModal("overallExportModal");showToast("Formatted overall Excel report exported");
+}
+function printOverallReport(){
+ if(!isAdmin())return;
+ const w=window.open("","_blank");if(!w){showToast("Please allow pop-ups for PDF export");return}
+ let sections="";
+ employees.forEach(e=>{
+   const r=reportData(e),d=r.d,eod=d.eod||{},done=r.done,pending=r.pending;
+   sections+=`<section class="emp"><h2>${esc(e.name)} <span>${esc(e.role||"")}</span></h2>
+   <p><b>Email:</b> ${esc(e.email||"")} &nbsp; <b>Total:</b> ${r.ts.length} &nbsp; <b>Completed:</b> ${r.done.length} &nbsp; <b>Pending:</b> ${r.pending.length} &nbsp; <b>Completion:</b> ${r.pct}%</p>
+   <h3>Today's Tasks</h3><table><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due</th><th>Category</th></tr>${r.ts.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td><td>${esc(t.due||"")}</td><td>${esc(t.category||"")}</td></tr>`).join("")}</table>
+   <div class="eod"><h3>EOD Report — ${eod.submitted?"Submitted at "+esc(eod.time||""):"Not Submitted"}</h3><p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p><p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p><p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p><p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p><p><b>Day Status:</b> ${esc(eod.status||"—")}</p></div></section>`;
+ });
+ w.document.write(`<html><head><title>Overall Team Report</title><style>
+ body{font-family:Arial,sans-serif;color:#18202f;padding:28px}h1{color:#4f46e5;margin-bottom:5px}.sub{color:#6b7280}.emp{page-break-inside:avoid;border:1px solid #e1e5eb;border-radius:12px;padding:15px;margin:18px 0}.emp h2{margin:0;color:#4f46e5}.emp h2 span{font-size:12px;color:#6b7280;font-weight:normal}.emp h3{font-size:13px;margin:14px 0 7px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #dfe3ea;padding:6px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.eod{background:#f8f9fc;padding:10px;border-radius:8px;font-size:11px;line-height:1.5}
+ </style></head><body><h1>Overall Team Daily Work Report</h1><p class="sub"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Total Employees:</b> ${employees.length}</p>${sections}</body></html>`);
+ w.document.close();setTimeout(()=>w.print(),250);closeModal("overallExportModal");
+}
+function printReport(){
+  try{
+    const r = reportData(isAdmin()?employees[selected]:currentEmp());
+    const taskRows = r.ts.map(t => `
+      <tr>
+        <td>${esc(t.title)}</td>
+        <td>${esc(t.priority)}</td>
+        <td>${esc(t.status)}</td>
+        <td>${esc(t.due || "—")}</td>
+        <td>${esc(t.category)}</td>
+      </tr>`).join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Daily Work Report - ${esc(r.emp.name)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:0;padding:34px;background:#fff}
+  .header{border-bottom:2px solid #4f46e5;padding-bottom:14px;margin-bottom:20px}
+  h1{margin:0 0 5px;font-size:25px;color:#111827}
+  h2{font-size:17px;margin:22px 0 10px;color:#111827}
+  .meta{font-size:12px;color:#4b5563;line-height:1.7}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
+  .card{border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#f9fafb}
+  .card small{display:block;color:#6b7280;font-size:10px}
+  .card strong{display:block;font-size:19px;margin-top:5px}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+  th{background:#eef2ff;color:#312e81;font-weight:700}
+  th,td{border:1px solid #dfe3ea;padding:8px;text-align:left;vertical-align:top}
+  .section{border:1px solid #e5e7eb;border-radius:8px;padding:13px;margin-top:12px}
+  .label{font-size:11px;font-weight:700;color:#374151;margin-bottom:5px}
+  .text{font-size:12px;line-height:1.6;white-space:pre-wrap;color:#4b5563}
+  .footer{margin-top:25px;font-size:9px;color:#9ca3af;text-align:center}
+  @media print{
+    body{padding:18px}
+    .no-print{display:none}
+    table{page-break-inside:auto}
+    tr{page-break-inside:avoid;page-break-after:auto}
+    .section{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Daily Work Report</h1>
+    <div class="meta">
+      <b>Employee:</b> ${esc(r.emp.name)} &nbsp;&nbsp;
+      <b>Designation:</b> ${esc(r.emp.role || "Team Member")}<br>
+      <b>Email:</b> ${esc(r.emp.email || "—")} &nbsp;&nbsp;
+      <b>Date:</b> ${pretty(selectedDate)}
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><small>Total Tasks</small><strong>${r.ts.length}</strong></div>
+    <div class="card"><small>Completed</small><strong>${r.done.length}</strong></div>
+    <div class="card"><small>Pending</small><strong>${r.pending.length}</strong></div>
+    <div class="card"><small>Completion</small><strong>${r.pct}%</strong></div>
+  </div>
+
+  <h2>Task Details</h2>
+  <table>
+    <thead><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due Time</th><th>Category</th></tr></thead>
+    <tbody>${taskRows || '<tr><td colspan="5">No tasks available.</td></tr>'}</tbody>
+  </table>
+
+  <h2>EOD Report</h2>
+  <div class="section">
+    <div class="label">Additional Work Completed</div>
+    <div class="text">${esc(r.d.additional || "Not provided")}</div>
+  </div>
+  <div class="section">
+    <div class="label">Pending Work Reason</div>
+    <div class="text">${esc(r.d.pendingReason || "Not provided")}</div>
+  </div>
+  <div class="section">
+    <div class="label">Issues / Blockers</div>
+    <div class="text">${esc(r.d.blockers || "No blockers reported")}</div>
+  </div>
+  <div class="section">
+    <div class="label">Tomorrow's Plan</div>
+    <div class="text">${esc(r.d.tomorrowPlan || r.d.tomorrow?.join(", ") || "Not provided")}</div>
+  </div>
+  <div class="section">
+    <div class="label">Overall Day Status</div>
+    <div class="text">${esc(r.d.status || "Not submitted")}</div>
+  </div>
+
+  <div class="footer">Generated by Daily Work Tracker</div>
+</body>
+</html>`;
+
+    // Use a hidden iframe instead of window.open().
+    // This avoids Chrome/Edge popup blocking when the page is opened from a local file or Live Server.
+    let old=document.getElementById("__dwt_print_frame");
+    if(old) old.remove();
+
+    const frame=document.createElement("iframe");
+    frame.id="__dwt_print_frame";
+    frame.style.position="fixed";
+    frame.style.right="0";
+    frame.style.bottom="0";
+    frame.style.width="1px";
+    frame.style.height="1px";
+    frame.style.border="0";
+    frame.style.opacity="0";
+    document.body.appendChild(frame);
+
+    frame.onload=function(){
+      setTimeout(()=>{
+        try{
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        }catch(err){
+          showToast("Print window could not open. Please allow printing/pop-ups.");
+        }
+      },250);
+    };
+
+    frame.srcdoc=html;
+    closeModal("exportModal");
+  }catch(err){
+    console.error(err);
+    showToast("Unable to prepare the PDF report.");
+  }
+}
+function download(content,name,type){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);showToast(name+" exported")}
+function closeModal(id){document.getElementById(id).classList.remove("show")}
+function showToast(s){let t=document.getElementById("toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600)}
+
+document.getElementById("loginBtn").onclick=doLogin;document.getElementById("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});document.getElementById("logoutBtn").onclick=logout;
+document.getElementById("employeeSelect").onchange=e=>{
+  selected=+e.target.value;
+  if(isAdmin() && selected===-1){showAdminReports();}else{showAdminSingleEmployee();}
+  render();
+};document.getElementById("dateSelect").onchange=e=>{selectedDate=new Date(e.target.value+"T12:00:00");render()};
+document.getElementById("prevBtn").onclick=()=>moveDate(-1);document.getElementById("nextBtn").onclick=()=>moveDate(1);document.getElementById("todayBtn").onclick=()=>{selectedDate=new Date();render()};
+document.getElementById("addTaskBtn").onclick=openTaskModal;document.getElementById("addTaskBtn2").onclick=openTaskModal;document.getElementById("saveTask").onclick=saveTask;document.getElementById("saveEod").onclick=saveEod;document.getElementById("tomorrowBtn").onclick=addTomorrow;
+document.getElementById("search").oninput=renderTasks;document.getElementById("statusFilter").onchange=renderTasks;document.getElementById("priorityFilter").onchange=renderTasks;
+document.getElementById("eodJump").onclick=()=>document.getElementById("eodSection").scrollIntoView({behavior:"smooth"});document.getElementById("pendingJump").onclick=()=>document.getElementById("pendingSection").scrollIntoView({behavior:"smooth"});
+document.getElementById("exportBtn").onclick=openExport;document.getElementById("exportBtn2").onclick=openExport;document.getElementById("manageTeamBtn").onclick=openTeam;document.getElementById("addMemberBtn").onclick=addMember;
+document.getElementById("adminEodExportBtn").onclick=exportAllEODCSV;
+document.getElementById("adminDetailedPdfBtn").onclick=exportOverallDetailedPDF;
+document.getElementById("adminDetailedExcelBtn").onclick=exportDetailedTeamExcel;document.getElementById("changePassBtn").onclick=changePassword;document.getElementById("savePass").onclick=savePassword;document.getElementById("overallBtn").onclick=()=>{document.getElementById("teamOverview").scrollIntoView({behavior:"smooth"});};
+document.getElementById("overallExportBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
+document.querySelectorAll(".modal-backdrop").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("show")}));
+</script>
+</body>
+</html>
