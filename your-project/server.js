@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const mysql = require("mysql2/promise");
 const cors = require("cors");
 const http = require("http");
@@ -15,6 +16,9 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
+});
 
     const db = mysql.createPool({
     host: process.env.DB_HOST,
