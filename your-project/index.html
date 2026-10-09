@@ -18,6 +18,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
 .modal-backdrop{position:fixed;inset:0;background:#11182766;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}.modal-backdrop.show{display:flex}.modal{background:#fff;width:min(600px,100%);max-height:91vh;overflow:auto;border-radius:19px;padding:21px;box-shadow:0 25px 80px #0003}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head h3{margin:0}.close{border:0;background:#f3f4f6;width:33px;height:33px;border-radius:9px}.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.full{grid-column:1/-1}.modal-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:16px}.toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:12px 15px;border-radius:11px;display:none;z-index:100}.toast.show{display:block}
 @media(max-width:1100px){.summary{grid-template-columns:1.4fr repeat(3,1fr)}.progress-card{grid-column:span 2}.grid{grid-template-columns:1fr}.employee-row{grid-template-columns:1.5fr 1.2fr repeat(4,70px)}}
 @media(max-width:700px){.app{padding:12px}.header{align-items:flex-start}.header-right .pill{display:none}.summary{grid-template-columns:1fr 1fr}.profile{grid-column:1/-1}.progress-card{grid-column:1/-1}.quick{margin-left:0;width:100%}.task{grid-template-columns:24px 1fr 30px}.task .badge,.task .status{display:none}.report-grid{grid-template-columns:1fr 1fr}.report-list{grid-template-columns:1fr}.modal-grid{grid-template-columns:1fr}.full{grid-column:auto}.employee-row{min-width:720px}}
+
+.task-work-note{padding:0 12px 12px 34px;border-bottom:1px solid #f0f2f6}.task-work-note label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px}.task-work-note textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:12px;outline:none}.task-work-note textarea:focus{border-color:var(--p);box-shadow:0 0 0 2px #4f46e51a}.employee-work-note{font-size:11px;color:#4b5563;margin:3px 0 8px;white-space:pre-wrap}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
@@ -32,7 +34,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
     <div class="field"><label>EMAIL / USERNAME</label><input id="loginUser" placeholder="Enter email or admin"></div>
     <div class="field"><label>PASSWORD</label><input id="loginPass" type="password" placeholder="Enter password"></div>
     <div class="login-actions"><button class="btn primary" id="loginBtn">Login</button></div>
-    <div class="login-note">Admin login: <b>admin</b> / <b>admin</b><br>Employee passwords are generated automatically when the member is added.</div>
+    <div class="login-note">Use your configured administrator credentials.<br>Employee passwords are generated automatically when the member is added.</div>
   </div>
 </div>
 
@@ -110,7 +112,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
   <div class="section-head">
     <div><h3>Team Reporting Center</h3><span class="muted">All employees' daily reporting, EOD submissions and detailed work summary</span></div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
-      <button class="btn primary" id="adminExportMenuBtn">Export ▾</button>
+      <button class="btn" id="adminEodExportBtn">📝 Export All EOD</button>
+      <button class="btn primary" id="adminDetailedPdfBtn">🖨 Detailed PDF</button>
+      <button class="btn primary" id="adminDetailedExcelBtn">📊 Detailed Excel</button>
     </div>
   </div>
 
@@ -175,9 +179,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
       <button class="close" onclick="closeModal('overallExportModal')">×</button>
     </div>
     <div style="display:grid;gap:9px">
-      <button class="btn" onclick="printTeamSummaryPDF()">🖨 Normal PDF — Overall Team Summary</button>
-      <button class="btn" onclick="printOverallReport()">📄 Detailed PDF — Employee-wise Reports</button>
-      <button class="btn primary" onclick="exportOverallXLSX()">📊 Detailed Excel (XLSX)</button>
+      <button class="btn" onclick="printOverallReport()">🖨 Print / Save Overall PDF</button>
+      <button class="btn" onclick="exportOverallCSV()">📋 Export Overall CSV</button>
+      <button class="btn primary" onclick="exportOverallXLSX()">📊 Export Overall Excel (XLSX)</button>
     </div>
   </div>
 </div>
@@ -193,11 +197,10 @@ const DEFAULT_EMPLOYEES=[
 ];
 
 const TEAM_KEY="dwt_team_v4", DATA_KEY="dwt_data_v4", ADMIN_KEY="dwt_admin_v4";
-let employees=load(TEAM_KEY,DEFAULT_EMPLOYEES);
+let employees=[];
 let extra=load(DATA_KEY,{});
 let admin=load(ADMIN_KEY,{username:"admin",password:"admin"});
-employees.forEach(e=>{if(!e.password)e.password=defaultPassword(e.name);});
-localStorage.setItem(TEAM_KEY,JSON.stringify(employees));
+// Database mode: employee records are loaded only from the server API.
 let selected=0,selectedDate=new Date(),currentUser=null;
 
 function load(k,f){try{let x=JSON.parse(localStorage.getItem(k));return x??f}catch(e){return f}}
@@ -249,7 +252,7 @@ function getData(emp=employees[selected],date=selectedDate){
  return extra[k];
 }
 function isAdmin(){return currentUser?.role==="admin"}
-function currentEmp(){return employees.find(e=>e.id===currentUser?.employeeId)||employees[selected]}
+function currentEmp(){return employees.find(e=>Number(e.id)===Number(currentUser?.employeeId))||employees[selected]}
 
 function doLogin(){
  let u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;
@@ -309,11 +312,6 @@ function refreshSelect(){
   let s=document.getElementById("employeeSelect");
   s.innerHTML=`<option value="-1">All Employees</option>`+employees.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join("");
   s.value=selected;
-}
-function getReportEmployees(){
-  if(!isAdmin() || selected===-1) return employees.slice();
-  const employee=employees[selected];
-  return employee ? [employee] : [];
 }
 
 function render(){
@@ -417,39 +415,49 @@ function showAdminSingleEmployee(){
   document.querySelector(".history")?.classList.add("hidden");
   renderAdminReports();
 }
-function renderAssignmentCenter(){
+async function renderAssignmentCenter(){
   if(!isAdmin())return;
-  const box=document.getElementById("assignmentEmployeeCards");
-  if(!box)return;
-  box.innerHTML=employees.map(e=>{
-    const d=getData(e,selectedDate);
-    const tasks=d.tasks||[];
-    const done=tasks.filter(t=>t.status==="Completed").length;
-    const taskHtml=tasks.length?tasks.map((t,ti)=>{
-      const due=t.due?" · Due "+esc(t.due):"";
-      return '<div class="mini-row"><div><b>'+esc(t.title)+'</b><div class="muted">'+esc(t.priority)+' · '+esc(t.status)+due+'</div></div><button class="btn danger" onclick="deleteAssignedTask('+e.id+','+ti+')">Delete</button></div>';
-    }).join(""):"<div class=\"muted\" style=\"padding:10px 0\">No tasks assigned for this date.</div>";
-    return '<div style="border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
-      '<div><b>'+esc(e.name)+'</b><div class="muted">'+esc(e.role||"Team Member")+' · '+esc(e.email||"")+'</div></div>'+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="badge low">'+done+'/'+tasks.length+' completed</span><button class="btn primary" onclick="openTaskModal('+e.id+')">+ Assign Task</button></div>'+      '</div><div style="margin-top:10px">'+taskHtml+'</div></div>';
-  }).join("");
+  const box=document.getElementById("assignmentEmployeeCards");if(!box)return;
+  box.innerHTML="<div class='muted' style='padding:12px'>Loading assigned tasks…</div>";
+  try{
+    const all=await Promise.all(employees.map(async e=>{
+      const r=await api(`/api/tasks/${e.id}/${selectedKey()}`);
+      return {e,tasks:(r.tasks||[]).map(normalizeTask)};
+    }));
+    box.innerHTML=all.map(({e,tasks})=>{
+      const done=tasks.filter(t=>t.status==="Completed").length;
+      const taskHtml=tasks.length?tasks.map(t=>`
+        <div class="mini-row">
+          <div>
+            <b>${esc(t.title)}</b>
+            <div class="muted">${esc(t.priority)} · ${esc(t.status)} · Due ${esc(t.due||"—")}</div>
+          </div>
+          <button class="btn danger" onclick="deleteAssignedTask(${t.id})">Delete</button>
+        </div>`).join(""):"<div class='muted' style='padding:10px 0'>No tasks assigned for this date.</div>";
+      return `<div style="border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><b>${esc(e.name)}</b><div class="muted">${esc(e.role||e.designation||"Team Member")} · ${esc(e.email||"")}</div></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge low">${done}/${tasks.length} completed</span><button class="btn primary" onclick="openTaskModal(${e.id})">+ Assign Task</button></div>
+        </div>
+        <div style="margin-top:10px">${taskHtml}</div>
+      </div>`;
+    }).join("");
+  }catch(e){box.innerHTML=`<div class="muted">Could not load assigned tasks: ${esc(e.message)}</div>`}
 }
-function deleteAssignedTask(empId,index){
+async function deleteAssignedTask(id){
   if(!isAdmin())return;
-  const emp=employees.find(e=>e.id===empId);
-  if(!emp)return;
   if(!confirm("Delete this assigned task?"))return;
-  getData(emp,selectedDate).tasks.splice(index,1);
-  persist();
-  renderAssignmentCenter();
-  renderAdminReports();
-  showToast("Task deleted");
+  try{
+    await api(`/api/tasks/${id}`,{method:"DELETE"});
+    await fetchAdminReports();
+    showToast("Task deleted");
+  }catch(e){showToast(e.message)}
 }
+
 function renderAdminReports(){
   if(isAdmin())renderAssignmentCenter();
   if(!isAdmin())return;
-  const reportEmployees=getReportEmployees();
-  const reports=reportEmployees.map(e=>reportData(e));
+  const reports=employees.map(e=>reportData(e));
   const total=reports.reduce((n,r)=>n+r.ts.length,0);
   const done=reports.reduce((n,r)=>n+r.done.length,0);
   const panel=document.getElementById("adminReportsPanel");
@@ -458,7 +466,7 @@ function renderAdminReports(){
   const taskCount=document.getElementById("teamTaskCount");
   const doneCount=document.getElementById("teamDoneCount");
   const pct=document.getElementById("teamPct");
-  if(empCount)empCount.textContent=reportEmployees.length;
+  if(empCount)empCount.textContent=employees.length;
   if(taskCount)taskCount.textContent=total;
   if(doneCount)doneCount.textContent=done;
   if(pct)pct.textContent=(total?Math.round(done/total*100):0)+"%";
@@ -522,46 +530,44 @@ function renderTasks(){
 function renderPending(){let d=getData(isAdmin()?employees[selected]:currentEmp()),arr=d.tasks.filter(t=>t.status!=="Completed");document.getElementById("pendingList").innerHTML=arr.length?arr.map(t=>`<div class="mini-row"><span><b>${esc(t.title)}</b><br><small class="muted">Due ${esc(t.due||"—")} · ${t.priority}</small></span><button class="btn" onclick="completeTask(${d.tasks.indexOf(t)})">Complete</button></div>`).join(""):`<div class="muted">No pending work 🎉</div>`}
 function renderTomorrow(){let d=getData(isAdmin()?employees[selected]:currentEmp());document.getElementById("tomorrowList").innerHTML=d.tomorrow.map((x,i)=>`<div class="mini-row"><span>☐ ${esc(x)}</span><button class="btn danger" onclick="removeTomorrow(${i})">Remove</button></div>`).join("")}
 function renderEod(){let d=getData(isAdmin()?employees[selected]:currentEmp()),ts=d.tasks;document.getElementById("eodCompleted").textContent=ts.filter(t=>t.status==="Completed").length+" Tasks";document.getElementById("eodPending").textContent=ts.filter(t=>t.status!=="Completed").length+" Tasks";document.getElementById("eodProgress").textContent=ts.filter(t=>t.status==="In Progress").length+" Tasks";let e=d.eod||{};["additional","pendingReason","blockers","tomorrowPlan"].forEach(k=>document.getElementById(k).value=e[k]||"");document.getElementById("dayStatus").value=e.status||"Excellent";document.getElementById("eodSaved").textContent=e.submitted?"🟢 Submitted at "+e.time:""}
-function renderReport(){let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pen=ts.filter(t=>t.status!=="Completed"),pct=ts.length?Math.round(done.length/ts.length*100):0,e=d.eod||{};document.getElementById("reportPreview").innerHTML=`<div class="report-grid"><div class="report-kpi"><small>Employee</small><strong style="font-size:14px">${esc(emp.name)}</strong></div><div class="report-kpi"><small>Total</small><strong>${ts.length}</strong></div><div class="report-kpi"><small>Completed</small><strong class="green">${done.length}</strong></div><div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div></div><div class="report-list"><div><h4>Completed Work</h4><ul>${done.map(t=>`<li>${esc(t.title)}</li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Pending / In Progress</h4><ul>${pen.map(t=>`<li>${esc(t.title)} — ${t.status}</li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Additional Work</h4><p class="muted">${esc(e.additional||"No additional work recorded.")}</p></div><div><h4>Pending Work Reason</h4><p class="muted">${esc(e.pendingReason||"No pending reason recorded.")}</p></div><div><h4>Issues / Blockers</h4><p class="muted">${esc(e.blockers||"No blockers recorded.")}</p></div><div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e.tomorrowPlan||d.tomorrow.join(", ")||"No plan added.")}</p></div><div><h4>Day Status</h4><p><b>${esc(e.status||"Not submitted")}</b></p><p class="muted">${e.submitted?"Submitted at "+esc(e.time||""):"EOD not submitted"}</p></div></div>`}
-function renderHistory(){let emp=isAdmin()?employees[selected]:currentEmp(),rows=[];for(let n=0;n<5;n++){let dt=new Date(selectedDate);dt.setDate(dt.getDate()-n);let x=extra[dayKey(emp,dt)],total=x?.tasks?.length||[12,10,14,9,11][n],done=x?x.tasks.filter(t=>t.status==="Completed").length:[7,9,10,8,7][n],pend=total-done,p=Math.round(done/total*100);rows.push(`<tr><td>${pretty(dt)}</td><td>${total}</td><td class="green">${done}</td><td class="orange">${pend}</td><td>${p}%</td><td>${x?.eod?.submitted?"🟢 Submitted":"—"}</td><td><button class="btn" onclick="loadHistory(${n})">View</button></td></tr>`)}document.getElementById("historyBody").innerHTML=rows.join("")}
+function renderReport(){let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pen=ts.filter(t=>t.status!=="Completed"),pct=ts.length?Math.round(done.length/ts.length*100):0,e=d.eod||{};document.getElementById("reportPreview").innerHTML=`<div class="report-grid"><div class="report-kpi"><small>Employee</small><strong style="font-size:14px">${esc(emp.name)}</strong></div><div class="report-kpi"><small>Total</small><strong>${ts.length}</strong></div><div class="report-kpi"><small>Completed</small><strong class="green">${done.length}</strong></div><div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div></div><div class="report-list"><div><h4>Completed Work</h4><ul>${done.map(t=>`<li><b>${esc(t.title)}</b><br><span class="employee-work-note">${esc(t.workNote||"No note provided")}</span></li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Pending / In Progress</h4><ul>${pen.map(t=>`<li>${esc(t.title)} — ${t.status}</li>`).join("")||"<li>None</li>"}</ul></div><div><h4>Additional Work</h4><p class="muted">${esc(e.additional||"No additional work recorded.")}</p></div><div><h4>Pending Work Reason</h4><p class="muted">${esc(e.pendingReason||"No pending reason recorded.")}</p></div><div><h4>Issues / Blockers</h4><p class="muted">${esc(e.blockers||"No blockers recorded.")}</p></div><div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e.tomorrowPlan||d.tomorrow.join(", ")||"No plan added.")}</p></div><div><h4>Day Status</h4><p><b>${esc(e.status||"Not submitted")}</b></p><p class="muted">${e.submitted?"Submitted at "+esc(e.time||""):"EOD not submitted"}</p></div></div>`}
+function renderHistory(){
+  // Safe database-mode behavior: do not display fabricated/localStorage history.
+  const body=document.getElementById("historyBody");
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="7" style="white-space:normal;color:#6b7280">Historical reports will appear here once the database history endpoint is connected. No sample counts are shown.</td></tr>';
+}
 function loadHistory(n){selectedDate=new Date(selectedDate);selectedDate.setDate(selectedDate.getDate()-n);render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderTeamOverview(){
-  if(!isAdmin())return;
-  const reportEmployees=getReportEmployees();
-  let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
-  const rows=reportEmployees.map((e)=>{
-    let d=getData(e,selectedDate),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pend=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress"),p=ts.length?Math.round(done.length/ts.length*100):0,eod=d.eod||{};
-    grandTotal+=ts.length;grandDone+=done.length;grandPending+=pend.length;grandProgress+=ip.length;
-    const completedList=done.length?done.map(t=>`<li>${esc(t.title)}</li>`).join(""):"<li>None</li>";
-    const pendingList=pend.length?pend.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join(""):"<li>None</li>";
-    return `<div class="employee-row">
-      <div class="employee-name">
-        ${esc(e.name)}<br><small class="muted">${esc(e.role)}</small>
-        <details><summary>View Today's Detailed Report</summary>
-          <div class="employee-breakdown">
-            <div class="employee-breakdown-grid">
-              <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
-              <div><h4>Pending / In Progress (${pend.length})</h4><ul>${pendingList}</ul></div>
-              <div><h4>EOD Report</h4>
-                <p><b>Status:</b> ${eod.submitted?"Submitted":"Not Submitted"}</p>
-                <p><b>Day Status:</b> ${esc(eod.status||"—")}</p>
-                <p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p>
-                <p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p>
-                <p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p>
-                <p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p>
-                <p><b>Submitted:</b> ${esc(eod.time||"—")}</p>
-              </div>
-            </div>
-          </div>
-        </details>
-      </div>
-      <div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pend.length}</div><div class="blue">${ip.length}</div><div><b>${p}%</b></div>
-    </div>`;
-  }).join("");
-  const totalRow=selected===-1?`<div class="employee-row" style="font-weight:800;background:#f8f9fc;border-radius:8px;padding:12px 8px">
-    <div>TEAM TOTAL</div><div>All Employees</div><div>${grandTotal}</div><div class="green">${grandDone}</div><div class="orange">${grandPending}</div><div class="blue">${grandProgress}</div><div><b>${grandTotal?Math.round(grandDone/grandTotal*100):0}%</b></div>
-  </div>`:"";
-  document.getElementById("teamRows").innerHTML=rows+totalRow;
+ if(!isAdmin())return;
+ document.getElementById("teamRows").innerHTML=employees.map((e,i)=>{
+   let d=getData(e,selectedDate),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pend=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress"),p=ts.length?Math.round(done.length/ts.length*100):0,eod=d.eod||{};
+   const completedList=done.length?done.map(t=>`<li>${esc(t.title)}</li>`).join(""):"<li>None</li>";
+   const pendingList=pend.length?pend.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join(""):"<li>None</li>";
+   return `<div class="employee-row">
+     <div class="employee-name">
+       ${esc(e.name)}<br><small class="muted">${esc(e.role)}</small>
+       <details><summary>View Today's Detailed Report</summary>
+         <div class="employee-breakdown">
+           <div class="employee-breakdown-grid">
+             <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
+             <div><h4>Pending / In Progress (${pend.length})</h4><ul>${pendingList}</ul></div>
+             <div><h4>EOD Report</h4>
+               <p><b>Status:</b> ${eod.submitted?"Submitted":"Not Submitted"}</p>
+               <p><b>Day Status:</b> ${esc(eod.status||"—")}</p>
+               <p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p>
+               <p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p>
+               <p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p>
+               <p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p>
+               <p><b>Submitted:</b> ${esc(eod.time||"—")}</p>
+             </div>
+           </div>
+         </div>
+       </details>
+     </div>
+     <div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pend.length}</div><div class="blue">${ip.length}</div><div><b>${p}%</b></div>
+   </div>`
+ }).join("")
 }
 function toggleTask(i){
  let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),t=d.tasks[i];
@@ -717,7 +723,7 @@ function exportExcel(){
 function exportAllEODCSV(){
   if(!isAdmin())return;
   const rows=[["TEAM EOD REPORTS"],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Work Submitted","EOD Status","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status","Submitted At"]];
-  getReportEmployees().forEach(e=>{
+  employees.forEach(e=>{
     const r=reportData(e),d=r.d,eod=d.eod||{},ip=r.ts.filter(t=>t.status==="In Progress").length;
     rows.push([e.name,e.email||"",e.role||"",r.submission?.submitted&&!r.submission?.needsResubmit?"Submitted":"Not Submitted",eod.submitted?"Submitted":"Not Submitted",r.done.length,r.pending.length,ip,r.pct+"%",eod.additional||"",eod.pendingReason||"",eod.blockers||"",eod.tomorrowPlan||"",eod.status||"",eod.time||""]);
   });
@@ -728,7 +734,7 @@ function exportAllEODCSV(){
 function overallRows(){
   const rows=[["OVERALL TEAM REPORT"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
   let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
-  getReportEmployees().forEach(e=>{
+  employees.forEach(e=>{
     const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;
     grandTotal+=r.ts.length;grandDone+=r.done.length;grandPending+=r.pending.length;grandProgress+=ip;
     rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"]);
@@ -739,11 +745,11 @@ function overallRows(){
 function exportOverallCSV(){
  if(!isAdmin())return;
  const rows=[["OVERALL TEAM REPORT"],["Date",pretty(selectedDate)],[],["TEAM SUMMARY"],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
- getReportEmployees().forEach(e=>{const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"])});
+ employees.forEach(e=>{const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"])});
  rows.push([],["DETAILED TASK REPORT"],["Employee","Email","Task","Priority","Status","Due Time","Category"]);
- getReportEmployees().forEach(e=>{const r=reportData(e);r.ts.forEach(t=>rows.push([e.name,e.email||"",t.title,t.priority,t.status,t.due||"",t.category||""]))});
+ employees.forEach(e=>{const r=reportData(e);r.ts.forEach(t=>rows.push([e.name,e.email||"",t.title,t.priority,t.status,t.due||"",t.category||""]))});
  rows.push([],["EOD REPORTS"],["Employee","Email","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status","Submitted At"]);
- getReportEmployees().forEach(e=>{const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted",d.eod?.time||""])});
+ employees.forEach(e=>{const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted",d.eod?.time||""])});
  download(rowsToCSV(rows),"overall-team-report.csv","text/csv;charset=utf-8");closeModal("overallExportModal");showToast("Detailed overall CSV exported")
 }
 function makeOverallWorkbook(){
@@ -760,7 +766,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,summary,"Overall Summary");
 
   const taskRows=[["ALL TEAM TASK DETAILS"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Task","Priority","Status","Due Time","Category","Additional Work","Pending Reason","Blockers","Tomorrow Plan"]];
-  getReportEmployees().forEach(e=>{
+  employees.forEach(e=>{
     const r=reportData(e),d=r.d;
     r.ts.forEach(t=>taskRows.push([e.name,e.email||"",e.role||"",t.title,t.priority,t.status,t.due||"",t.category,d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||""]));
   });
@@ -772,7 +778,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,details,"All Tasks");
 
   const eodRows=[["TEAM EOD REPORTS"],[],["Employee","Email","Date","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status"]];
-  getReportEmployees().forEach(e=>{
+  employees.forEach(e=>{
     const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;
     eodRows.push([e.name,e.email||"",pretty(selectedDate),r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted"]);
   });
@@ -783,7 +789,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,eod,"EOD Reports");
 
   const breakdownRows=[["TODAY'S EMPLOYEE BREAKDOWN"],[],["Employee","Email","Designation","Completed Work","Pending / In Progress","Additional Work","Pending Reason","Blockers","Tomorrow Plan","EOD Status","Submitted At"]];
-  getReportEmployees().forEach(e=>{
+  employees.forEach(e=>{
     const r=reportData(e),d=r.d,eod=d.eod||{};
     const doneText=r.done.map(t=>t.title).join(" | ")||"None";
     const pendingText=r.pending.map(t=>t.title+" ("+t.status+")").join(" | ")||"None";
@@ -805,32 +811,11 @@ function exportOverallXLSX(){
   XLSX.writeFile(wb,`overall-team-report-${fmt(selectedDate)}.xlsx`);
   closeModal("overallExportModal");showToast("Formatted overall Excel report exported");
 }
-function printTeamSummaryPDF(){
-  if(!isAdmin())return;
-  try{
-    const reportEmployees=getReportEmployees();
-    let total=0,doneTotal=0,pendingTotal=0,progressTotal=0;
-    const body=reportEmployees.map(e=>{
-      const d=getData(e,selectedDate),ts=d.tasks||[],done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress").length,pct=ts.length?Math.round(done.length/ts.length*100):0;
-      total+=ts.length;doneTotal+=done.length;pendingTotal+=pending.length;progressTotal+=ip;
-      return `<tr><td>${esc(e.name)}</td><td>${esc(e.email||"—")}</td><td>${ts.length}</td><td>${done.length}</td><td>${pending.length}</td><td>${ip}</td><td>${pct}%</td></tr>`;
-    }).join("");
-    const totalRow=selected===-1?`<tr class="total"><td>TEAM TOTAL</td><td>All Employees</td><td>${total}</td><td>${doneTotal}</td><td>${pendingTotal}</td><td>${progressTotal}</td><td>${total?Math.round(doneTotal/total*100):0}%</td></tr>`:"";
-    const html=`<!doctype html><html><head><meta charset="UTF-8"><title>Overall Team Summary - ${pretty(selectedDate)}</title><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:24px}h1{color:#4f46e5;margin:0 0 6px;font-size:22px}.meta{color:#6b7280;font-size:12px;margin-bottom:18px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #e7eaf0;padding:10px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.total{font-weight:800;background:#f3f4f6}@media print{body{padding:12px}tr{page-break-inside:avoid}}
-      </style></head><body><h1>Overall Team Summary</h1><div class="meta"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Employees:</b> ${reportEmployees.length}</div><table><thead><tr><th>Employee</th><th>Email</th><th>Total</th><th>Done</th><th>Pending</th><th>In Progress</th><th>%</th></tr></thead><tbody>${body}${totalRow}</tbody></table></body></html>`;
-    let old=document.getElementById("__dwt_summary_print_frame");if(old)old.remove();
-    const frame=document.createElement("iframe");frame.id="__dwt_summary_print_frame";frame.style.position="fixed";frame.style.right="0";frame.style.bottom="0";frame.style.width="1px";frame.style.height="1px";frame.style.border="0";frame.style.opacity="0";document.body.appendChild(frame);
-    frame.onload=()=>setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(err){showToast("PDF print could not open. Please try again.")}},250);
-    frame.srcdoc=html;closeModal("overallExportModal");
-  }catch(err){console.error(err);showToast("Unable to prepare team summary PDF.")}
-}
 function printOverallReport(){
   if(!isAdmin())return;
   try{
     let sections="";
-    const reportEmployees=getReportEmployees();
-    reportEmployees.forEach(e=>{
+    employees.forEach(e=>{
       const r=reportData(e),d=r.d,eod=d.eod||{};
       sections+=`<section class="emp"><h2>${esc(e.name)} <span>${esc(e.role||"")}</span></h2>
       <p><b>Email:</b> ${esc(e.email||"")} &nbsp; <b>Total Submitted:</b> ${r.ts.length} &nbsp; <b>Completed:</b> ${r.done.length} &nbsp; <b>Pending:</b> ${r.pending.length} &nbsp; <b>Completion:</b> ${r.pct}%</p>
@@ -839,7 +824,7 @@ function printOverallReport(){
       <div class="eod"><h3>EOD Report</h3><p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p><p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p><p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p><p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p><p><b>Day Status:</b> ${esc(eod.status||"—")}</p></div></section>`;
     });
     const html=`<!doctype html><html><head><meta charset="UTF-8"><title>Overall Team Report - ${pretty(selectedDate)}</title><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:28px}h1{color:#4f46e5;margin:0 0 5px}h2{color:#4f46e5;margin:0 0 6px;font-size:18px}h2 span{font-size:11px;color:#6b7280;font-weight:normal}.sub{color:#6b7280;font-size:11px}.emp{border:1px solid #dfe3ea;border-radius:10px;padding:15px;margin:18px 0;page-break-inside:avoid}.emp h3{font-size:13px;margin:13px 0 7px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #dfe3ea;padding:6px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.eod{background:#f8f9fc;border-radius:8px;padding:10px;font-size:11px;line-height:1.5}.footer{font-size:9px;color:#9ca3af;text-align:center;margin-top:20px}@media print{body{padding:15px}.emp{page-break-inside:avoid}tr{page-break-inside:avoid}}</style></head><body><h1>Overall Team Daily Work Report</h1><p class="sub"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Total Employees:</b> ${reportEmployees.length}</p>${sections}<div class="footer">Generated by Daily Work Tracker</div></body></html>`;
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:28px}h1{color:#4f46e5;margin:0 0 5px}h2{color:#4f46e5;margin:0 0 6px;font-size:18px}h2 span{font-size:11px;color:#6b7280;font-weight:normal}.sub{color:#6b7280;font-size:11px}.emp{border:1px solid #dfe3ea;border-radius:10px;padding:15px;margin:18px 0;page-break-inside:avoid}.emp h3{font-size:13px;margin:13px 0 7px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #dfe3ea;padding:6px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.eod{background:#f8f9fc;border-radius:8px;padding:10px;font-size:11px;line-height:1.5}.footer{font-size:9px;color:#9ca3af;text-align:center;margin-top:20px}@media print{body{padding:15px}.emp{page-break-inside:avoid}tr{page-break-inside:avoid}}</style></head><body><h1>Overall Team Daily Work Report</h1><p class="sub"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Total Employees:</b> ${employees.length}</p>${sections}<div class="footer">Generated by Daily Work Tracker</div></body></html>`;
     let old=document.getElementById("__dwt_overall_print_frame");if(old)old.remove();
     const frame=document.createElement("iframe");frame.id="__dwt_overall_print_frame";frame.style.position="fixed";frame.style.right="0";frame.style.bottom="0";frame.style.width="1px";frame.style.height="1px";frame.style.border="0";frame.style.opacity="0";document.body.appendChild(frame);
     frame.onload=()=>setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(err){showToast("PDF print could not open. Please try again.")}},250);
@@ -990,11 +975,779 @@ document.getElementById("submitWorkBtn").onclick=submitTodayWork;document.getEle
 document.getElementById("search").oninput=renderTasks;document.getElementById("statusFilter").onchange=renderTasks;document.getElementById("priorityFilter").onchange=renderTasks;
 document.getElementById("eodJump").onclick=()=>document.getElementById("eodSection").scrollIntoView({behavior:"smooth"});document.getElementById("pendingJump").onclick=()=>document.getElementById("pendingSection").scrollIntoView({behavior:"smooth"});
 document.getElementById("exportBtn").onclick=openExport;document.getElementById("exportBtn2").onclick=openExport;document.getElementById("manageTeamBtn").onclick=openTeam;document.getElementById("addMemberBtn").onclick=addMember;
-document.getElementById("adminExportMenuBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
-
-document.getElementById("changePassBtn").onclick=changePassword;document.getElementById("savePass").onclick=savePassword;document.getElementById("overallBtn").onclick=()=>{document.getElementById("adminReportsPanel").scrollIntoView({behavior:"smooth"});};document.getElementById("eodReportsBtn").onclick=()=>{document.getElementById("allEodReports").scrollIntoView({behavior:"smooth"});};
+document.getElementById("adminEodExportBtn").onclick=exportAllEODCSV;
+document.getElementById("adminDetailedPdfBtn").onclick=()=>printOverallReport();
+document.getElementById("adminDetailedExcelBtn").onclick=()=>exportOverallXLSX();document.getElementById("changePassBtn").onclick=changePassword;document.getElementById("savePass").onclick=savePassword;document.getElementById("overallBtn").onclick=()=>{document.getElementById("adminReportsPanel").scrollIntoView({behavior:"smooth"});};document.getElementById("eodReportsBtn").onclick=()=>{document.getElementById("allEodReports").scrollIntoView({behavior:"smooth"});};
 document.getElementById("overallExportBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
 document.querySelectorAll(".modal-backdrop").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("show")}));
 </script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+/* ============================================================
+   DATABASE MODE
+   This block replaces the old localStorage data layer.
+   UI remains the same; data now comes from Node + MySQL.\n   Browser localStorage is not used as the source of truth.
+   ============================================================ */
+let dbTasks=[];
+let dbSubmission=null;
+let dbEod=null;
+let dbAdminReports=[];
+let dbDayLoading=false;
+
+const API_BASE="";
+async function api(path, options={}){
+  const res=await fetch(API_BASE+path,{
+    headers:{"Content-Type":"application/json",...(options.headers||{})},
+    ...options
+  });
+  let data={};
+  try{data=await res.json()}catch(e){}
+  if(!res.ok || data.success===false) throw new Error(data.message||data.error||"Request failed");
+  return data;
+}
+function isoToday(){return fmt(new Date())}
+function selectedKey(){return fmt(selectedDate)}
+function normalizeTask(t){
+  return {
+    id:t.id,title:t.title||"",description:t.description||"",
+    priority:t.priority||"Medium",status:
+      (t.status==="completed"||t.status==="Completed")?"Completed":
+      (t.status==="in_progress"||t.status==="In Progress")?"In Progress":"Not Started",
+    category:t.category||"Regular",due:t.due_time||t.due_date||t.due||"",
+    estimate:t.estimated_time||"",notes:t.admin_notes||t.notes||"",workNote:t.workNote||"",
+    taskDate:t.task_date||selectedKey(),recurrence:t.recurrence||"none"
+  };
+}
+function employeeById(id){return employees.find(e=>Number(e.id)===Number(id))}
+function empName(e){return e?.name||"Employee"}
+function reportTaskSnapshot(tasks){
+  return (tasks||[]).map(t=>({...normalizeTask(t),workNote:String(t.workNote||"")}));
+}
+function isTodaySelected(){return selectedKey()===isoToday()}
+
+async function fetchEmployees(){
+  const r=await api("/api/employees");
+  if(!Array.isArray(r.employees))throw new Error("Employee list was not returned by the database API");
+  employees=r.employees.map(e=>({...e,role:e.designation||"Team Member"}));
+  if(isAdmin())refreshSelect();
+  return employees;
+}
+async function fetchEmployeeDay(emp,date=selectedDate){
+  if(!emp)return;
+  dbDayLoading=true;
+  try{
+    const [tr,su,eo]=await Promise.all([
+      api(`/api/tasks/${emp.id}/${fmt(date)}`),
+      api(`/api/work-submissions/${emp.id}/${fmt(date)}`),
+      api(`/api/eod-reports/${emp.id}/${fmt(date)}`)
+    ]);
+    dbTasks=(tr.tasks||[]).map(normalizeTask);
+    dbSubmission=su.submitted&&su.submission?{
+      ...su.submission,
+      task_snapshot:typeof su.submission.task_snapshot==="string"?JSON.parse(su.submission.task_snapshot||"[]"):(su.submission.task_snapshot||[]),
+      submitted:true,
+      time:su.submission.submitted_at?new Date(su.submission.submitted_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""
+    }:null;
+    if(dbSubmission){
+      const submittedTasks=dbSubmission.task_snapshot||[];
+      dbTasks=dbTasks.map(t=>{const snap=submittedTasks.find(x=>Number(x.id)===Number(t.id));return {...t,workNote:snap?.workNote||t.workNote||""};});
+    }
+    dbEod=eo.submitted&&eo.report?{
+      ...eo.report,
+      submitted:true,
+      time:eo.report.submitted_at?new Date(eo.report.submitted_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""
+    }:{};
+  }finally{dbDayLoading=false}
+}
+async function fetchAdminReports(){
+  const date=selectedKey();
+  const [sr,er]=await Promise.all([
+    api(`/api/admin/work-submissions?date=${encodeURIComponent(date)}`),
+    api(`/api/admin/eod-reports?date=${encodeURIComponent(date)}`)
+  ]);
+  const submissions=sr.submissions||[], eods=er.reports||[];
+  dbAdminReports=employees.map(emp=>{
+    const raw=submissions.find(x=>Number(x.employee_id)===Number(emp.id));
+    const rawEod=eods.find(x=>Number(x.employee_id)===Number(emp.id));
+    let tasks=[];
+    if(raw){try{tasks=typeof raw.task_snapshot==="string"?JSON.parse(raw.task_snapshot||"[]"):(raw.task_snapshot||[])}catch(_){tasks=[]}}
+    return {employee:emp,submitted:!!raw,submission:raw||null,tasks:raw?tasks:[],eod:rawEod||null};
+  });
+  renderAdminReports();
+  renderTeamOverview();
+  renderAssignmentCenter();
+}
+function currentDbReport(){
+  const emp=isAdmin()?employees[selected]:currentEmp();
+  return dbAdminReports.find(r=>Number(r.employee?.id)===Number(emp?.id));
+}
+function adminVisibleTasks(report){
+  return report?.submitted ? (report.tasks||[]).map(normalizeTask) : [];
+}
+function adminStatusText(report){
+  return report?.submitted ? "🟢 Work Submitted" : "⚪ Work Not Submitted";
+}
+
+async function doLogin(){
+  const u=document.getElementById("loginUser").value.trim();
+  const p=document.getElementById("loginPass").value;
+  if(!u||!p)return showToast("Enter username/email and password");
+  try{
+    const r=await api("/api/login",{method:"POST",body:JSON.stringify({username:u,password:p})});
+    currentUser={...r.user,role:r.role,employeeId:r.role==="employee"?r.user.id:null};
+    if(currentUser.role==="employee"){
+      await fetchEmployees();
+      selected=employees.findIndex(e=>Number(e.id)===Number(currentUser.employeeId));
+      selectedDate=new Date();
+    }else{
+      await fetchEmployees();
+      selected=-1;
+      selectedDate=new Date();
+    }
+    showApp();
+  }catch(e){showToast(e.message)}
+}
+
+async function showApp(){
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  const adminMode=isAdmin();
+  document.getElementById("rolePill").textContent=adminMode?"ADMIN":"EMPLOYEE";
+  document.getElementById("topAvatar").textContent=initials(currentUser.name);
+  document.getElementById("employeeSelect").disabled=!adminMode;
+  document.querySelectorAll(".admin-only").forEach(x=>x.classList.toggle("hidden",!adminMode));
+  document.querySelectorAll(".employee-only").forEach(x=>x.classList.toggle("hidden",adminMode));
+  ["taskSection","pendingSection","tomorrowSection"].forEach(id=>document.getElementById(id)?.classList.toggle("hidden",adminMode));
+  document.getElementById("eodSection")?.classList.toggle("hidden",adminMode);
+  document.querySelector(".report")?.classList.toggle("hidden",adminMode);
+  document.querySelector(".history")?.classList.toggle("hidden",adminMode);
+  ["teamOverview","taskAssignmentPanel","adminReportsPanel"].forEach(id=>document.getElementById(id)?.classList.toggle("hidden",!adminMode));
+  document.getElementById("tomorrowBtn").classList.add("hidden");
+  document.getElementById("dateSelect").value=selectedKey();
+  refreshSelect();
+
+  if(adminMode){
+    await fetchAdminReports();
+    showAdminReports();
+  }else{
+    await fetchEmployeeDay(currentEmp(),selectedDate);
+    renderEmployee();
+  }
+}
+
+function logout(){
+  currentUser=null;dbTasks=[];dbSubmission=null;dbEod=null;dbAdminReports=[];
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("loginPass").value="";
+}
+
+function renderEmployee(){
+  const emp=currentEmp();
+  if(!emp)return;
+  const ts=dbTasks||[];
+  const done=ts.filter(t=>t.status==="Completed");
+  const pending=ts.filter(t=>t.status!=="Completed");
+  const ip=ts.filter(t=>t.status==="In Progress");
+  const pct=ts.length?Math.round(done.length/ts.length*100):0;
+  const submitted=!!dbSubmission;
+  const eodSubmitted=!!dbEod?.submitted;
+  document.getElementById("headerDate").textContent=pretty(selectedDate);
+  document.getElementById("dateSelect").value=selectedKey();
+  document.getElementById("summary").innerHTML=
+    `<div class="card profile"><div class="profile-avatar">${initials(emp.name)}</div><div><h2>${esc(emp.name)}</h2><p>${esc(emp.role||emp.designation||"Team Member")} · ${esc(emp.email||"")}</p><p style="margin-top:7px"><b>${isTodaySelected()?"Today's":"Selected Day"} Work Summary</b></p></div></div>
+     <div class="card stat"><small>Total Tasks</small><strong>${ts.length}</strong></div>
+     <div class="card stat"><small>Completed</small><strong class="green">${done.length}</strong></div>
+     <div class="card stat"><small>Pending</small><strong class="orange">${pending.length}</strong></div>
+     <div class="card stat"><small>In Progress</small><strong class="blue">${ip.length}</strong></div>
+     <div class="card progress-card"><div class="ring" style="--pct:${pct}%"><span>${pct}%</span></div><div><b>Completion</b><br><small class="muted">${eodSubmitted?"🟢 EOD Submitted":submitted?"🟠 EOD Pending":"⚪ Work Not Submitted"}</small></div></div>`;
+  document.getElementById("taskSub").textContent=`${ts.length} assigned tasks · ${done.length} completed`;
+  renderTasks();
+  renderPending();
+  renderEod();
+  renderEmployeeReport();
+  renderHistory();
+  renderWorkSubmitBox();
+  renderCategoryCounts();
+}
+
+function setTaskWorkNote(i,value){
+  if(!isTodaySelected()||isAdmin())return;
+  if(!dbTasks[i]||dbTasks[i].status!=="Completed")return;
+  dbTasks[i].workNote=value;
+  if(dbSubmission)dbSubmission.needsResubmit=true;
+  renderWorkSubmitBox();
+}
+function renderTasks(){
+  const q=(document.getElementById("search")?.value||"").toLowerCase();
+  const sf=document.getElementById("statusFilter")?.value||"all";
+  const pf=document.getElementById("priorityFilter")?.value||"all";
+  const arr=dbTasks.filter(t=>(!q||t.title.toLowerCase().includes(q))&&(sf==="all"||t.status===sf)&&(pf==="all"||t.priority===pf));
+  const editable=isTodaySelected()&&!isAdmin();
+  document.getElementById("taskList").innerHTML=arr.length?arr.map(t=>{
+    const i=dbTasks.indexOf(t);
+    return `<div class="task-wrap"><div class="task ${t.status==="Completed"?"done":""}">
+      <input class="check" type="checkbox" ${t.status==="Completed"?"checked":""} ${editable?"":"disabled"} onchange="toggleTask(${i})">
+      <div onclick="openDetail(${i})" style="cursor:pointer"><div class="task-title">${esc(t.title)}</div><div class="task-meta">${esc(t.category)} · Due ${esc(t.due||"—")}</div></div>
+      <span class="badge ${t.priority==="High"||t.priority==="Urgent"?"high":t.priority==="Medium"?"medium":"low"}">${esc(t.priority)}</span><span class="status">${esc(t.status)}</span><button class="dots" onclick="openDetail(${i})">⋮</button>
+    </div>${t.status==="Completed"?`<div class="task-work-note"><label for="taskWorkNote_${i}">WHAT DID YOU DO FOR THIS TASK? <span style="color:var(--red)">*</span></label><textarea id="taskWorkNote_${i}" data-work-note-index="${i}" placeholder="Describe the work you completed..." oninput="setTaskWorkNote(${i},this.value)" ${editable?"":"disabled"} required>${esc(t.workNote||"")}</textarea></div>`:""}</div>`;
+  }).join(""):`<div class="muted" style="padding:25px;text-align:center">No tasks assigned for this date.</div>`;
+}
+function renderPending(){
+  const arr=dbTasks.filter(t=>t.status!=="Completed");
+  document.getElementById("pendingList").innerHTML=arr.length?arr.map(t=>{
+    const i=dbTasks.indexOf(t);
+    return `<div class="mini-row"><span><b>${esc(t.title)}</b><br><small class="muted">Due ${esc(t.due||"—")} · ${esc(t.priority)}</small></span>${isTodaySelected()?`<button class="btn" onclick="completeTask(${i})">Complete</button>`:""}</div>`;
+  }).join(""):`<div class="muted">No pending work 🎉</div>`;
+}
+
+function renderEod(){
+  const ts=dbTasks||[];
+  document.getElementById("eodCompleted").textContent=ts.filter(t=>t.status==="Completed").length+" Tasks";
+  document.getElementById("eodPending").textContent=ts.filter(t=>t.status!=="Completed").length+" Tasks";
+  document.getElementById("eodProgress").textContent=ts.filter(t=>t.status==="In Progress").length+" Tasks";
+  const e=dbEod||{};
+  ["additional","pendingReason","blockers","tomorrowPlan"].forEach(k=>document.getElementById(k).value=e[k==="additional"?"additional_work":k==="pendingReason"?"pending_reason":k==="tomorrowPlan"?"tomorrow_plan":k]||"");
+  document.getElementById("dayStatus").value=({"Completed":"Good","Partially Completed":"Average","Pending":"Needs Attention"}[e.overall_status]||"Good");
+  document.getElementById("eodSaved").textContent=e.submitted?"🟢 Submitted at "+(e.time||""):"";
+  const canEdit=isTodaySelected()&&!!dbSubmission;
+  ["additional","pendingReason","blockers","tomorrowPlan","dayStatus","saveEod"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!canEdit});
+}
+
+function renderEmployeeReport(){
+  const ts=dbTasks||[], done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed");
+  const pct=ts.length?Math.round(done.length/ts.length*100):0;
+  const e=dbEod||{};
+  document.getElementById("reportPreview").innerHTML=
+    `<div class="report-grid"><div class="report-kpi"><small>Employee</small><strong style="font-size:14px">${esc(currentEmp().name)}</strong></div><div class="report-kpi"><small>Total</small><strong>${ts.length}</strong></div><div class="report-kpi"><small>Completed</small><strong class="green">${done.length}</strong></div><div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div></div>
+     <div class="report-list"><div><h4>Completed Work</h4><ul>${done.map(t=>`<li><b>${esc(t.title)}</b><br><span class="employee-work-note">${esc(t.workNote||"No note provided")}</span></li>`).join("")||"<li>None</li>"}</ul></div>
+     <div><h4>Pending / In Progress</h4><ul>${pending.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join("")||"<li>None</li>"}</ul></div>
+     <div><h4>Additional Work</h4><p class="muted">${esc(e.additional_work||"No additional work recorded.")}</p></div>
+     <div><h4>Pending Work Reason</h4><p class="muted">${esc(e.pending_reason||"No pending reason recorded.")}</p></div>
+     <div><h4>Issues / Blockers</h4><p class="muted">${esc(e.blockers||"No blockers recorded.")}</p></div>
+     <div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e.tomorrow_plan||"No plan added.")}</p></div></div>`;
+}
+
+function renderCategoryCounts(){
+  const c=(cat)=>dbTasks.filter(t=>t.category===cat).length;
+  document.getElementById("importantCount").textContent=c("Important");
+  document.getElementById("regularCount").textContent=c("Regular");
+  document.getElementById("additionalCount").textContent=c("Additional");
+}
+
+function renderWorkSubmitBox(){
+  const btn=document.getElementById("submitWorkBtn"),status=document.getElementById("workSubmitStatus");
+  if(!btn||!status)return;
+  if(!isTodaySelected()){
+    btn.disabled=true;btn.textContent="Work Submission Available for Today";btn.classList.remove("primary");btn.classList.add("success");
+    status.textContent="Historical dates are read-only.";
+  }else if(dbSubmission?.needsResubmit){
+    btn.disabled=false;btn.textContent="↻ Resubmit Today's Work";btn.classList.add("primary");btn.classList.remove("success");
+    status.textContent="You changed a task note after submission. Resubmit to send the latest snapshot to admin.";
+  }else if(dbSubmission){
+    btn.disabled=true;btn.textContent="✓ Submitted to Admin";btn.classList.remove("primary");btn.classList.add("success");
+    status.textContent=`Submitted at ${dbSubmission.time||"today"}. Admin can now see this day's work.`;
+  }else{
+    btn.disabled=false;btn.textContent="✓ Submit Today's Work";btn.classList.add("primary");btn.classList.remove("success");
+    status.textContent="Admin will see 0 tasks until you submit today's work.";
+  }
+}
+
+async function toggleTask(i){
+  if(!isTodaySelected())return showToast("Past dates are read-only.");
+  const t=dbTasks[i];if(!t)return;
+  const status=t.status==="Completed"?"pending":"completed";
+  try{await api(`/api/tasks/${t.id}/status`,{method:"PUT",body:JSON.stringify({status})});await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();showToast(status==="completed"?"Task completed":"Task reopened");}
+  catch(e){showToast(e.message)}
+}
+async function completeTask(i){
+  if(!isTodaySelected())return showToast("Past dates are read-only.");
+  const t=dbTasks[i];if(!t)return;
+  try{await api(`/api/tasks/${t.id}/status`,{method:"PUT",body:JSON.stringify({status:"completed"})});await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();showToast("Task completed");}
+  catch(e){showToast(e.message)}
+}
+function openDetail(i){
+  const t=dbTasks[i];if(!t)return;
+  document.getElementById("detailContent").innerHTML=`<div class="modal-grid">
+    <div class="field full"><label>TASK</label><h3 style="margin:0">${esc(t.title)}</h3></div>
+    <div class="field"><label>PRIORITY</label><span>${esc(t.priority)}</span></div>
+    <div class="field"><label>STATUS</label><span>${esc(t.status)}</span></div>
+    <div class="field"><label>DUE</label><span>${esc(t.due||"—")}</span></div>
+    <div class="field"><label>CATEGORY</label><span>${esc(t.category)}</span></div>
+    <div class="field full"><label>DESCRIPTION</label><p class="muted">${esc(t.description||"No description.")}</p></div>
+    <div class="field full"><label>ADMIN NOTES</label><p class="muted">${esc(t.notes||"No notes.")}</p></div></div>
+    <div class="modal-actions">${isAdmin()?`<button class="btn danger" onclick="deleteTask(${i})">Delete</button>`:""}${!isAdmin()&&isTodaySelected()?`<button class="btn success" onclick="completeTask(${i});closeModal('detailModal')">Mark Complete</button>`:""}<button class="btn" onclick="closeModal('detailModal')">Close</button></div>`;
+  document.getElementById("detailModal").classList.add("show");
+}
+async function deleteTask(i){
+  const t=dbTasks[i];if(!t)return;
+  if(!confirm("Delete this task?"))return;
+  try{await api(`/api/tasks/${t.id}`,{method:"DELETE"});if(isAdmin()){await fetchAdminReports()}else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee()}showToast("Task deleted")}
+  catch(e){showToast(e.message)}
+}
+
+function renderHistory(){
+  const emp=currentEmp();if(!emp)return;
+  const rows=[];
+  for(let n=0;n<7;n++){
+    const dt=new Date();dt.setDate(dt.getDate()-n);
+    rows.push(`<tr><td>${pretty(dt)}</td><td><button class="btn" onclick="loadHistoryDate('${fmt(dt)}')">View</button></td></tr>`);
+  }
+  document.getElementById("historyBody").innerHTML=rows.map((r,i)=>{
+    const cols=r.match(/<td>.*?<\/td>/g)||[];
+    return `<tr>${cols[0]}<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>${cols[1]}</tr>`;
+  }).join("");
+}
+async function loadHistoryDate(key){
+  selectedDate=new Date(key+"T12:00:00");
+  await fetchEmployeeDay(currentEmp(),selectedDate);
+  renderEmployee();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function showAdminReports(){
+  if(!isAdmin())return;
+  ["taskSection","pendingSection","tomorrowSection"].forEach(id=>document.getElementById(id)?.classList.add("hidden"));
+  document.getElementById("eodSection")?.classList.add("hidden");
+  document.querySelector(".report")?.classList.add("hidden");
+  document.querySelector(".history")?.classList.add("hidden");
+  document.getElementById("teamOverview")?.classList.remove("hidden");
+  document.getElementById("taskAssignmentPanel")?.classList.remove("hidden");
+  document.getElementById("adminReportsPanel")?.classList.remove("hidden");
+  fetchAdminReports();
+}
+function showAdminSingleEmployee(){showAdminReports()}
+
+function renderAssignmentCenter(){
+  if(!isAdmin())return;
+  const box=document.getElementById("assignmentEmployeeCards");if(!box)return;
+  box.innerHTML=employees.map(e=>{
+    const r=dbAdminReports.find(x=>Number(x.employee.id)===Number(e.id));
+    const tasks=r?.submitted?adminVisibleTasks(r):[];
+    // Assignment center must show assigned DB tasks, even before submission.
+    return `<div style="border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div><b>${esc(e.name)}</b><div class="muted">${esc(e.role||e.designation||"Team Member")} · ${esc(e.email||"")}</div></div>
+        <div><span class="badge low">${r?.submitted?(r.tasks||[]).length:0} submitted</span><button class="btn primary" onclick="openTaskModal(${e.id})">+ Assign Task</button></div>
+      </div>
+      <div class="muted" style="margin-top:9px">Use the selected date above to assign tasks for <b>${pretty(selectedDate)}</b>. Employee updates remain hidden from reporting until submission.</div>
+    </div>`;
+  }).join("");
+}
+
+function renderAdminReports(){
+  if(!isAdmin())return;
+  const reports=dbAdminReports;
+  const total=reports.reduce((n,r)=>n+(r.submitted?(r.tasks||[]).length:0),0);
+  const done=reports.reduce((n,r)=>n+(r.submitted?(r.tasks||[]).filter(t=>normalizeTask(t).status==="Completed").length:0),0);
+  document.getElementById("teamEmpCount").textContent=employees.length;
+  document.getElementById("teamTaskCount").textContent=total;
+  document.getElementById("teamDoneCount").textContent=done;
+  document.getElementById("teamPct").textContent=(total?Math.round(done/total*100):0)+"%";
+
+  const box=document.getElementById("detailedTeamReports");
+  box.innerHTML=reports.map((r,i)=>{
+    const e=r.employee,s=r.submission,ts=(r.tasks||[]).map(normalizeTask);
+    const doneT=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed");
+    const pct=ts.length?Math.round(doneT.length/ts.length*100):0;
+    const eo=r.eod||{};
+    return `<div class="card" style="margin-bottom:10px;overflow:hidden;box-shadow:none">
+      <div class="employee-row" style="padding:14px;cursor:pointer;min-width:0" onclick="toggleTeamDetail(${i})">
+        <div class="employee-name">${esc(e.name)}<br><small class="muted">${esc(e.designation||"Team Member")} · ${esc(e.email)}</small></div>
+        <div>${s?"🟢 Work Submitted":"⚪ Work Not Submitted"}</div>
+        <div>${ts.length}</div><div class="green">${doneT.length}</div><div class="orange">${pending.length}</div>
+        <div class="blue">${ts.filter(t=>t.status==="In Progress").length}</div><div><b>${pct}%</b></div>
+      </div>
+      <div id="teamDetail_${i}" class="hidden" style="padding:0 14px 16px;border-top:1px solid var(--border)">
+        ${s?`<div class="report-grid" style="margin-top:12px">
+          <div class="report-kpi"><small>Total Submitted</small><strong>${ts.length}</strong></div>
+          <div class="report-kpi"><small>Completed</small><strong class="green">${doneT.length}</strong></div>
+          <div class="report-kpi"><small>Pending</small><strong class="orange">${pending.length}</strong></div>
+          <div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div>
+        </div>
+        <div class="report-list">
+          <div><h4>Completed Work</h4><ul>${doneT.map(t=>`<li>${esc(t.title)}</li>`).join("")||"<li>None</li>"}</ul></div>
+          <div><h4>Pending / In Progress</h4><ul>${pending.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join("")||"<li>None</li>"}</ul></div>
+          <div><h4>EOD Additional Work</h4><p class="muted">${esc(eo.additional_work||"Not submitted")}</p></div>
+          <div><h4>Pending Reason</h4><p class="muted">${esc(eo.pending_reason||"Not submitted")}</p></div>
+          <div><h4>Issues / Blockers</h4><p class="muted">${esc(eo.blockers||"None reported")}</p></div>
+          <div><h4>Tomorrow's Plan</h4><p class="muted">${esc(eo.tomorrow_plan||"Not provided")}</p></div>
+        </div>`:`<div style="padding:15px 0;color:#6b7280">Employee has not submitted this day's work yet. Admin data remains <b>0</b> until submission.</div>`}
+      </div></div>`;
+  }).join("");
+
+  const eodBox=document.getElementById("allEodReports");
+  eodBox.innerHTML=reports.map(r=>{
+    const e=r.eod;
+    return `<div class="mini-row" style="align-items:flex-start"><span><b>${esc(r.employee.name)}</b><br><small class="muted">${e?"🟢 EOD Submitted at "+esc(new Date(e.submitted_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})):"🟠 EOD Pending"}</small></span>
+      <button class="btn" onclick="toggleEodDetail(${r.employee.id})">${e?"View EOD":"Pending"}</button></div>
+      <div id="eodDetail_${r.employee.id}" class="hidden" style="padding:10px 0 14px;border-bottom:1px solid var(--border)">
+        <div class="report-list">
+          <div><h4>Additional Work</h4><p class="muted">${esc(e?.additional_work||"Not submitted")}</p></div>
+          <div><h4>Pending Reason</h4><p class="muted">${esc(e?.pending_reason||"Not submitted")}</p></div>
+          <div><h4>Issues / Blockers</h4><p class="muted">${esc(e?.blockers||"None reported")}</p></div>
+          <div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e?.tomorrow_plan||"Not provided")}</p></div>
+        </div>
+      </div>`;
+  }).join("");
+}
+function toggleTeamDetail(i){document.getElementById("teamDetail_"+i)?.classList.toggle("hidden")}
+function toggleEodDetail(id){document.getElementById("eodDetail_"+id)?.classList.toggle("hidden")}
+
+async function changeDate(){
+  selectedDate=new Date(document.getElementById("dateSelect").value+"T12:00:00");
+  if(isAdmin()){await fetchAdminReports();showAdminReports();}
+  else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();}
+}
+async function moveDate(n){
+  const d=new Date(selectedDate);d.setDate(d.getDate()+n);selectedDate=d;
+  document.getElementById("dateSelect").value=selectedKey();
+  if(isAdmin()){await fetchAdminReports();showAdminReports();}else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();}
+}
+
+function openTaskModal(targetId=null){
+  if(!isAdmin())return showToast("Only admin can assign new tasks");
+  ["taskName","taskDescription","taskDueTime","taskEstimate","taskNotes"].forEach(x=>document.getElementById(x).value="");
+  document.getElementById("taskPriority").value="Medium";
+  document.getElementById("taskStatus").value="Not Started";
+  document.getElementById("taskCategory").value="Regular";
+  document.getElementById("recurring").value="No";
+  document.getElementById("taskDate").value=selectedKey();
+  const sel=document.getElementById("taskEmployeeSelect");
+  sel.innerHTML=employees.map(e=>`<option value="${e.id}">${esc(e.name)} — ${esc(e.role||e.designation||"Team Member")}</option>`).join("");
+  if(targetId!=null)sel.value=targetId;
+  document.getElementById("taskModal").classList.add("show");
+}
+async function saveTask(){
+  if(!isAdmin())return;
+  const targetId=Number(document.getElementById("taskEmployeeSelect").value);
+  const payload={
+    employee_id:targetId,
+    title:document.getElementById("taskName").value.trim(),
+    description:document.getElementById("taskDescription").value,
+    priority:document.getElementById("taskPriority").value,
+    category:document.getElementById("taskCategory").value,
+    estimated_time:document.getElementById("taskEstimate").value,
+    admin_notes:document.getElementById("taskNotes").value,
+    task_date:document.getElementById("taskDate").value,
+    due_date:document.getElementById("taskDueTime").value||null,
+    recurrence:document.getElementById("recurring").value.toLowerCase(),
+    status:document.getElementById("taskStatus").value==="Completed"?"completed":document.getElementById("taskStatus").value==="In Progress"?"in_progress":"pending"
+  };
+  if(!payload.title)return showToast("Please enter a task name");
+  try{
+    const r=await api("/api/tasks",{method:"POST",body:JSON.stringify(payload)});
+    closeModal("taskModal");
+    selectedDate=new Date(payload.task_date+"T12:00:00");
+    await fetchAdminReports();
+    showToast(r.message||"Task assigned successfully");
+  }catch(e){showToast(e.message)}
+}
+
+async function addMember(){
+  const name=document.getElementById("newMemberName").value.trim();
+  const designation=document.getElementById("newMemberRole").value.trim();
+  const email=document.getElementById("newMemberEmail").value.trim();
+  if(!name||!email)return showToast("Name and email are required");
+  try{
+    const r=await api("/api/employees",{method:"POST",body:JSON.stringify({name,designation,email})});
+    document.getElementById("newMemberName").value="";
+    document.getElementById("newMemberRole").value="";
+    document.getElementById("newMemberEmail").value="";
+    await fetchEmployees();refreshSelect();renderTeamMembers();
+    showToast(`Added ${name}. Default password: ${r.defaultPassword}`);
+  }catch(e){showToast(e.message)}
+}
+async function removeMember(id){
+  if(!confirm("Remove this team member?"))return;
+  try{await api(`/api/employees/${id}`,{method:"DELETE"});await fetchEmployees();refreshSelect();renderTeamMembers();await fetchAdminReports();showToast("Team member removed")}
+  catch(e){showToast(e.message)}
+}
+async function openTeam(){
+  if(!isAdmin())return;
+  await fetchEmployees();renderTeamMembers();document.getElementById("teamModal").classList.add("show");
+}
+function renderTeamMembers(){
+  document.getElementById("teamMemberList").innerHTML=employees.map(e=>
+    `<div class="mini-row"><span><b>${esc(e.name)}</b><br><small class="muted">${esc(e.role||e.designation||"Team Member")} · ${esc(e.email)}</small></span><button class="btn danger" onclick="removeMember(${e.id})">Remove</button></div>`
+  ).join("");
+}
+
+async function submitTodayWork(){
+  if(isAdmin()||!isTodaySelected())return;
+  if(!dbTasks.length)return showToast("No assigned tasks to submit");
+  const missing=dbTasks.filter(t=>t.status==="Completed"&&!String(t.workNote||"").trim());
+  if(missing.length){showToast(`Add a work note for each completed task: ${missing.slice(0,3).map(t=>t.title).join(", ")}${missing.length>3?"…":""}`);const i=dbTasks.findIndex(t=>t.status==="Completed"&&!String(t.workNote||"").trim());document.querySelector(`[data-work-note-index="${i}"]`)?.focus();return;}
+  const tasks=reportTaskSnapshot(dbTasks);
+  try{
+    const r=await api("/api/work-submissions",{method:"POST",body:JSON.stringify({
+      employee_id:currentEmp().id,submission_date:isoToday(),
+      completed_tasks:tasks.filter(t=>t.status==="Completed").length,
+      pending_tasks:tasks.filter(t=>t.status==="Not Started").length,
+      in_progress_tasks:tasks.filter(t=>t.status==="In Progress").length,
+      task_snapshot:tasks
+    })});
+    await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();
+    showToast(r.message||"Today's work submitted to admin");
+  }catch(e){showToast(e.message)}
+}
+
+async function saveEod(){
+  if(isAdmin()||!isTodaySelected())return;
+  if(!dbSubmission)return showToast("Please submit today's work first");
+  try{
+    const r=await api("/api/eod-reports",{method:"POST",body:JSON.stringify({
+      employee_id:currentEmp().id,report_date:isoToday(),
+      additional_work:document.getElementById("additional").value,
+      pending_reason:document.getElementById("pendingReason").value,
+      blockers:document.getElementById("blockers").value,
+      tomorrow_plan:document.getElementById("tomorrowPlan").value,
+      overall_status:({"Excellent":"Completed","Good":"Completed","Average":"Partially Completed","Needs Attention":"Pending"}[document.getElementById("dayStatus").value]||"Pending")
+    })});
+    await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();
+    showToast(r.message||"EOD report submitted");
+  }catch(e){showToast(e.message)}
+}
+
+function addTomorrow(){showToast("Tomorrow's plan is submitted through the EOD report.");}
+
+async function savePassword(){
+  if(!isAdmin())return;
+  const currentPassword=document.getElementById("currentPass").value;
+  const newPassword=document.getElementById("newPass").value;
+  const confirm=document.getElementById("confirmPass").value;
+  if(newPassword!==confirm)return showToast("New passwords do not match");
+  try{
+    await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword,newPassword})});
+    closeModal("passModal");showToast("Admin password changed successfully");
+    document.getElementById("currentPass").value="";document.getElementById("newPass").value="";document.getElementById("confirmPass").value="";
+  }catch(e){showToast(e.message)}
+}
+function changePassword(){if(isAdmin())document.getElementById("passModal").classList.add("show")}
+
+function currentReportForExport(){
+  if(isAdmin()){
+    const r=currentDbReport();
+    if(!r)return {employee:employees[selected],tasks:[],submission:null,eod:null};
+    return {employee:r.employee,tasks:(r.tasks||[]).map(normalizeTask),submission:r.submission,eod:r.eod};
+  }
+  return {employee:currentEmp(),tasks:dbTasks,submission:dbSubmission,eod:dbEod};
+}
+function printReport(){
+  const r=currentReportForExport(),tasks=r.tasks||[],done=tasks.filter(t=>t.status==="Completed"),pending=tasks.filter(t=>t.status!=="Completed");
+  const html=`<!doctype html><html><head><meta charset="UTF-8"><title>Daily Work Report</title><style>
+  body{font-family:Arial;color:#18202f;padding:25px}h1{color:#4f46e5}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ddd;padding:7px;text-align:left}th{background:#eef2ff}.box{border:1px solid #ddd;border-radius:8px;padding:10px;margin:10px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.muted{color:#666;font-size:11px}@media print{body{padding:12px}}</style></head><body>
+  <h1>Daily Work Report</h1><p><b>Employee:</b> ${esc(r.employee?.name)} &nbsp; <b>Designation:</b> ${esc(r.employee?.designation||r.employee?.role||"")}<br><b>Email:</b> ${esc(r.employee?.email||"")} &nbsp; <b>Date:</b> ${pretty(selectedDate)}</p>
+  <div class="grid"><div class="box"><small>Total</small><h2>${tasks.length}</h2></div><div class="box"><small>Completed</small><h2>${done.length}</h2></div><div class="box"><small>Pending</small><h2>${pending.length}</h2></div><div class="box"><small>Completion</small><h2>${tasks.length?Math.round(done.length/tasks.length*100):0}%</h2></div></div>
+  <h3>Task Details</h3><table><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due</th><th>Category</th></tr>${tasks.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td><td>${esc(t.due||"—")}</td><td>${esc(t.category)}</td></tr>`).join("")||"<tr><td colspan=5>No tasks available.</td></tr>"}</table>
+  <h3>EOD Report</h3><div class="box"><b>Additional Work:</b><br>${esc(r.eod?.additional_work||"Not submitted")}</div><div class="box"><b>Pending Reason:</b><br>${esc(r.eod?.pending_reason||"Not submitted")}</div><div class="box"><b>Issues / Blockers:</b><br>${esc(r.eod?.blockers||"Not submitted")}</div><div class="box"><b>Tomorrow's Plan:</b><br>${esc(r.eod?.tomorrow_plan||"Not submitted")}</div><div class="box"><b>Day Status:</b> ${esc(r.eod?.day_status||"Not submitted")}</div>
+  </body></html>`;
+  printHTML(html,"__dwt_db_print");
+}
+function printHTML(html,id){
+  document.getElementById(id)?.remove();
+  const frame=document.createElement("iframe");frame.id=id;
+  Object.assign(frame.style,{position:"fixed",right:"0",bottom:"0",width:"1px",height:"1px",border:"0",opacity:"0"});
+  document.body.appendChild(frame);
+  frame.onload=()=>setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(e){showToast("Print could not open")}},250);
+  frame.srcdoc=html;
+  closeModal("exportModal");closeModal("overallExportModal");
+}
+function exportCSV(){
+  const r=currentReportForExport(),rows=[["Employee","Date","Task","Priority","Status","Due","Category"],...(r.tasks||[]).map(t=>[r.employee?.name,selectedKey(),t.title,t.priority,t.status,t.due,t.category])];
+  rows.push([],["EOD Additional Work",r.eod?.additional_work||""],["Pending Reason",r.eod?.pending_reason||""],["Blockers",r.eod?.blockers||""],["Tomorrow Plan",r.eod?.tomorrow_plan||""],["Day Status",r.eod?.day_status||""]);
+  download(rows.map(row=>row.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n"),`daily-report-${selectedKey()}.csv`,"text/csv");
+}
+function exportExcel(){
+  if(!window.XLSX)return showToast("Excel library is loading");
+  const r=currentReportForExport(),rows=[["Daily Work Report"],["Employee",r.employee?.name],["Designation",r.employee?.designation||r.employee?.role||""],["Date",selectedKey()],[],["Task","Priority","Status","Due","Category","Employee Work Note"],...(r.tasks||[]).map(t=>[t.title,t.priority,t.status,t.due,t.category,t.workNote||""]),[],["EOD Field","Value"],["Additional Work",r.eod?.additional_work||""],["Pending Reason",r.eod?.pending_reason||""],["Blockers",r.eod?.blockers||""],["Tomorrow Plan",r.eod?.tomorrow_plan||""],["Day Status",r.eod?.day_status||""]];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:28},{wch:22},{wch:18},{wch:14},{wch:18}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Daily Report");XLSX.writeFile(wb,`daily-report-${selectedKey()}.xlsx`);closeModal("exportModal");showToast("Excel report exported");
+}
+function exportAllEODCSV(){
+  const rows=[["Employee","Date","EOD Status","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status"]];
+  dbAdminReports.forEach(r=>{const e=r.eod;rows.push([r.employee.name,selectedKey(),e?"Submitted":"Pending",e?.additional_work||"",e?.pending_reason||"",e?.blockers||"",e?.tomorrow_plan||"",e?.day_status||""])});
+  download(rows.map(x=>x.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n"),`team-eod-${selectedKey()}.csv`,"text/csv");
+}
+function printOverallReport(){
+  if(!isAdmin())return;
+  let sections="";
+  dbAdminReports.forEach(r=>{
+    const ts=(r.tasks||[]).map(normalizeTask),done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed"),e=r.eod;
+    sections+=`<section style="border:1px solid #ddd;border-radius:9px;padding:14px;margin:15px 0;page-break-inside:avoid"><h2>${esc(r.employee.name)}</h2><p>${esc(r.employee.designation||"")} · ${esc(r.employee.email)}</p><p><b>Work:</b> ${r.submitted?"Submitted":"Not Submitted"} &nbsp; <b>Total:</b> ${ts.length} &nbsp; <b>Completed:</b> ${done.length} &nbsp; <b>Pending:</b> ${pending.length}</p><table style="width:100%;border-collapse:collapse;font-size:10px"><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due</th></tr>${ts.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td><td>${esc(t.due||"")}</td></tr>`).join("")||"<tr><td colspan=4>No submitted work.</td></tr>"}</table><p><b>EOD:</b> ${e?"Submitted":"Pending"}</p><p><b>Additional:</b> ${esc(e?.additional_work||"—")}<br><b>Pending Reason:</b> ${esc(e?.pending_reason||"—")}<br><b>Blockers:</b> ${esc(e?.blockers||"—")}<br><b>Tomorrow:</b> ${esc(e?.tomorrow_plan||"—")}<br><b>Status:</b> ${esc(e?.day_status||"—")}</p></section>`;
+  });
+  printHTML(`<!doctype html><html><head><meta charset="UTF-8"><title>Overall Team Report</title><style>body{font-family:Arial;padding:22px;color:#18202f}h1{color:#4f46e5}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:5px;text-align:left}th{background:#eef2ff}@media print{body{padding:12px}}</style></head><body><h1>Overall Team Daily Work Report</h1><p><b>Date:</b> ${pretty(selectedDate)} · <b>Employees:</b> ${employees.length}</p>${sections}</body></html>`,"__dwt_overall_print_frame");
+}
+function exportOverallXLSX(){
+  if(!window.XLSX)return showToast("Excel library is loading");
+  const rows=[["Overall Team Report"],["Date",selectedKey()],[],["Employee","Email","Work Submitted","Total Submitted","Completed","Pending","Completion %","EOD","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status"]];
+  dbAdminReports.forEach(r=>{
+    const ts=(r.tasks||[]).map(normalizeTask),done=ts.filter(t=>t.status==="Completed").length,total=ts.length;
+    rows.push([r.employee.name,r.employee.email,r.submitted?"Yes":"No",total,done,total-done,total?Math.round(done/total*100):0,r.eod?"Submitted":"Pending",r.eod?.additional_work||"",r.eod?.pending_reason||"",r.eod?.blockers||"",r.eod?.tomorrow_plan||"",r.eod?.day_status||""]);
+  });
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:24},{wch:28},{wch:16},{wch:16},{wch:12},{wch:12},{wch:14},{wch:12},{wch:35},{wch:35},{wch:35},{wch:35},{wch:18}];XLSX.utils.book_append_sheet(wb,ws,"Overall Summary");
+  const detail=[["Employee","Task","Priority","Status","Due","Category","Employee Work Note"]];
+  dbAdminReports.forEach(r=>(r.tasks||[]).map(normalizeTask).forEach(t=>detail.push([r.employee.name,t.title,t.priority,t.status,t.due,t.category,t.workNote||""])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(detail),"Submitted Tasks");
+  XLSX.writeFile(wb,`overall-team-report-${selectedKey()}.xlsx`);closeModal("overallExportModal");showToast("Overall Excel report exported");
+}
+
+function renderTeamOverview(){
+  if(!isAdmin())return;
+  const rows=dbAdminReports.map((r,i)=>{
+    const ts=(r.tasks||[]).map(normalizeTask),done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed");
+    const taskDetails=r.submitted?`<details style="margin:8px 0 14px 12px"><summary style="cursor:pointer;font-weight:650">View submitted tasks and employee notes (${ts.length})</summary><div style="padding:8px 0 0 12px">${ts.map(t=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><b>${esc(t.title)}</b> <span class="status">${esc(t.status)}</span>${t.status==="Completed"?`<div class="employee-work-note"><b>Employee Note:</b> ${esc(t.workNote||"No note provided")}</div>`:""}</div>`).join("")||"<span class=muted>No submitted tasks.</span>"}</div></details>`:`<div class="muted" style="margin:8px 0 14px 12px">Work not submitted — tasks are hidden until employee submission.</div>`;
+    return `<div class="card" style="margin-bottom:10px;padding:12px;box-shadow:none"><div class="employee-row"><div class="employee-name">${esc(r.employee.name)}<br><small class="muted">${esc(r.employee.designation||r.employee.role||"")}</small></div><div>${esc(r.employee.email||"")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pending.length}</div><div class="blue">${ts.filter(t=>t.status==="In Progress").length}</div><div>${ts.length?Math.round(done.length/ts.length*100):0}%</div></div>${taskDetails}</div>`;
+  }).join("");
+  const el=document.getElementById("teamRows");if(el)el.innerHTML=rows;
+}
+
+/* Rebind controls to database mode */
+document.getElementById("loginBtn").onclick=doLogin;
+document.getElementById("loginPass").onkeydown=e=>{if(e.key==="Enter")doLogin()};
+document.getElementById("logoutBtn").onclick=logout;
+document.getElementById("dateSelect").onchange=changeDate;
+document.getElementById("prevBtn").onclick=()=>moveDate(-1);
+document.getElementById("nextBtn").onclick=()=>moveDate(1);
+document.getElementById("todayBtn").onclick=async()=>{selectedDate=new Date();document.getElementById("dateSelect").value=selectedKey();if(isAdmin()){await fetchAdminReports();showAdminReports()}else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee()}};
+document.getElementById("employeeSelect").onchange=async e=>{
+  selected=Number(e.target.value);
+  if(selected<0){await fetchAdminReports();showAdminReports();return}
+  await fetchAdminReports();showAdminReports();
+};
+document.getElementById("addTaskBtn").onclick=openTaskModal;
+document.getElementById("addTaskBtn2").onclick=openTaskModal;
+document.getElementById("submitWorkBtn").onclick=submitTodayWork;
+document.getElementById("saveTask").onclick=saveTask;
+document.getElementById("saveEod").onclick=saveEod;
+document.getElementById("manageTeamBtn").onclick=openTeam;
+document.getElementById("addMemberBtn").onclick=addMember;
+document.getElementById("changePassBtn").onclick=changePassword;
+document.getElementById("savePass").onclick=savePassword;
+document.getElementById("search").oninput=renderTasks;
+document.getElementById("statusFilter").onchange=renderTasks;
+document.getElementById("priorityFilter").onchange=renderTasks;
+document.getElementById("eodJump").onclick=()=>document.getElementById("eodSection").scrollIntoView({behavior:"smooth"});
+document.getElementById("pendingJump").onclick=()=>document.getElementById("pendingSection").scrollIntoView({behavior:"smooth"});
+document.getElementById("exportBtn").onclick=openExport;
+document.getElementById("exportBtn2").onclick=openExport;
+document.getElementById("overallBtn").onclick=()=>document.getElementById("adminReportsPanel").scrollIntoView({behavior:"smooth"});
+document.getElementById("eodReportsBtn").onclick=()=>document.getElementById("allEodReports").scrollIntoView({behavior:"smooth"});
+document.getElementById("overallExportBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
+document.getElementById("adminEodExportBtn").onclick=exportAllEODCSV;
+document.getElementById("adminDetailedPdfBtn").onclick=printOverallReport;
+document.getElementById("adminDetailedExcelBtn").onclick=exportOverallXLSX;
+
+try{
+  const socket=io();
+  socket.on("taskAssigned",async()=>{if(currentUser){if(isAdmin())await fetchAdminReports();else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();}}});
+  socket.on("taskUpdated",async()=>{if(currentUser&&!isAdmin()){await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee()}});
+  socket.on("workSubmitted",async()=>{if(currentUser&&isAdmin())await fetchAdminReports()});
+  socket.on("eodSubmitted",async()=>{if(currentUser&&isAdmin())await fetchAdminReports()});
+  socket.on("teamUpdated",async()=>{if(currentUser&&isAdmin()){await fetchEmployees();refreshSelect();await fetchAdminReports()}});
+}catch(e){console.warn("Socket.IO live updates unavailable",e)}
+</script>
+
+
+<script>
+/* Safe database-mode compatibility fixes */
+document.addEventListener("DOMContentLoaded",()=>{});
+function renderTeamOverview(){
+  if(!isAdmin()) return;
+  const reports=Array.isArray(dbAdminReports)?dbAdminReports:[];
+  let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
+  const rows=reports.map(r=>{
+    const e=r.employee||{};
+    const ts=(r.submitted?(r.tasks||[]):[]).map(normalizeTask);
+    const done=ts.filter(t=>t.status==="Completed");
+    const pending=ts.filter(t=>t.status!=="Completed");
+    const ip=ts.filter(t=>t.status==="In Progress");
+    const pct=ts.length?Math.round(done.length/ts.length*100):0;
+    const eo=r.eod||{};
+    grandTotal+=ts.length; grandDone+=done.length; grandPending+=pending.length; grandProgress+=ip.length;
+    const completedList=done.map(t=>`<li><b>${esc(t.title)}</b><div class="employee-work-note"><b>Employee Note:</b> ${esc(t.workNote||"No note provided")}</div></li>`).join("")||"<li>None</li>";
+    const pendingList=pending.map(t=>`<li><b>${esc(t.title)} — ${esc(t.status)}</b></li>`).join("")||"<li>None</li>";
+    return `<div class="employee-row">
+      <div class="employee-name">${esc(e.name||"Employee")}<br><small class="muted">${esc(e.designation||e.role||"")}</small>
+        <details><summary>View Today's Detailed Report</summary><div class="employee-breakdown"><div class="employee-breakdown-grid">
+          <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
+          <div><h4>Pending / In Progress (${pending.length})</h4><ul>${pendingList}</ul></div>
+          <div><h4>EOD Report</h4><p><b>Status:</b> ${r.eod?"Submitted":"Not Submitted"}</p>
+            <p><b>Overall Status:</b> ${esc(eo.overall_status||"—")}</p>
+            <p><b>Additional Work:</b> ${esc(eo.additional_work||"—")}</p>
+            <p><b>Pending Reason:</b> ${esc(eo.pending_reason||"—")}</p>
+            <p><b>Blockers:</b> ${esc(eo.blockers||"—")}</p>
+            <p><b>Tomorrow:</b> ${esc(eo.tomorrow_plan||"—")}</p>
+          </div></div></div></details>
+      </div><div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pending.length}</div><div class="blue">${ip.length}</div><div><b>${pct}%</b></div>
+    </div>`;
+  }).join("");
+  const totalRow=selected===-1?`<div class="employee-row" style="font-weight:800;background:#f8f9fc;border-radius:8px;padding:12px 8px">
+    <div>TEAM TOTAL</div><div>All Employees</div><div>${grandTotal}</div><div class="green">${grandDone}</div><div class="orange">${grandPending}</div><div class="blue">${grandProgress}</div><div><b>${grandTotal?Math.round(grandDone/grandTotal*100):0}%</b></div></div>`:"";
+  const box=document.getElementById("teamRows"); if(box)box.innerHTML=rows+totalRow;
+}
+function renderTeamMembers(){
+  const box=document.getElementById("teamMemberList"); if(!box)return;
+  box.innerHTML=employees.map(e=>`<div class="mini-row"><span><b>${esc(e.name)}</b><br><small class="muted">${esc(e.role||e.designation||"Team Member")} · ${esc(e.email||"")}</small></span><span class="muted">Active database employee</span></div>`).join("");
+}
+function changePassword(){showToast("Admin password changes are not enabled by the current backend.");}
+async function savePassword(){showToast("Admin password changes are not enabled by the current backend.");}
+function openDetail(i){
+  const t=dbTasks[i]; if(!t)return;
+  document.getElementById("detailContent").innerHTML=`<div class="modal-grid">
+    <div class="field full"><label>TASK</label><h3 style="margin:0">${esc(t.title)}</h3></div>
+    <div class="field"><label>PRIORITY</label><span>${esc(t.priority)}</span></div><div class="field"><label>STATUS</label><span>${esc(t.status)}</span></div>
+    <div class="field"><label>DUE</label><span>${esc(t.due||"—")}</span></div><div class="field"><label>CATEGORY</label><span>${esc(t.category)}</span></div>
+    <div class="field full"><label>DESCRIPTION</label><p class="muted">${esc(t.description||"No description.")}</p></div>
+    <div class="field full"><label>ADMIN NOTES</label><p class="muted">${esc(t.notes||"No notes.")}</p></div>
+    ${t.status==="Completed"?`<div class="field full"><label>EMPLOYEE WORK NOTE</label><p>${esc(t.workNote||"No work note submitted.")}</p></div>`:""}
+  </div><div class="modal-actions"><button class="btn" onclick="closeModal('detailModal')">Close</button></div>`;
+  document.getElementById("detailModal").classList.add("show");
+}
+function deleteTask(){showToast("Task deletion is disabled to protect existing records.");}
+function deleteAssignedTask(){showToast("Task deletion is disabled to protect existing records.");}
+function removeMember(){showToast("Employee removal is disabled to protect existing records.");}
+function renderAdminReports(){
+  if(!isAdmin())return;
+  const reports=dbAdminReports||[];
+  const total=reports.reduce((n,r)=>n+(r.submitted?(r.tasks||[]).length:0),0);
+  const done=reports.reduce((n,r)=>n+(r.submitted?(r.tasks||[]).map(normalizeTask).filter(t=>t.status==="Completed").length:0),0);
+  document.getElementById("teamEmpCount").textContent=employees.length;
+  document.getElementById("teamTaskCount").textContent=total;
+  document.getElementById("teamDoneCount").textContent=done;
+  document.getElementById("teamPct").textContent=(total?Math.round(done/total*100):0)+"%";
+  const box=document.getElementById("detailedTeamReports");
+  if(box)box.innerHTML=reports.map((r,i)=>{
+    const e=r.employee||{}, ts=(r.submitted?(r.tasks||[]):[]).map(normalizeTask);
+    const doneT=ts.filter(t=>t.status==="Completed"), pending=ts.filter(t=>t.status!=="Completed"), eo=r.eod||{};
+    const pct=ts.length?Math.round(doneT.length/ts.length*100):0;
+    return `<div class="card" style="margin-bottom:10px;overflow:hidden;box-shadow:none">
+      <div class="employee-row" style="padding:14px;cursor:pointer;min-width:0" onclick="toggleTeamDetail(${i})">
+        <div class="employee-name">${esc(e.name||"Employee")}<br><small class="muted">${esc(e.designation||e.role||"Team Member")} · ${esc(e.email||"")}</small></div>
+        <div>${r.submitted?"🟢 Work Submitted":"⚪ Work Not Submitted"}</div><div>${ts.length}</div><div class="green">${doneT.length}</div><div class="orange">${pending.length}</div><div class="blue">${ts.filter(t=>t.status==="In Progress").length}</div><div><b>${pct}%</b></div>
+      </div>
+      <div id="teamDetail_${i}" class="hidden" style="padding:0 14px 16px;border-top:1px solid var(--border)">
+      ${r.submitted?`<div class="report-grid" style="margin-top:12px"><div class="report-kpi"><small>Total Submitted</small><strong>${ts.length}</strong></div><div class="report-kpi"><small>Completed</small><strong class="green">${doneT.length}</strong></div><div class="report-kpi"><small>Pending</small><strong class="orange">${pending.length}</strong></div><div class="report-kpi"><small>Completion</small><strong>${pct}%</strong></div></div>
+      <div class="report-list"><div><h4>Completed Work & Employee Notes</h4><ul>${doneT.map(t=>`<li><b>${esc(t.title)}</b><br><span class="employee-work-note">${esc(t.workNote||"No work note provided.")}</span></li>`).join("")||"<li>None</li>"}</ul></div>
+      <div><h4>Pending / In Progress</h4><ul>${pending.map(t=>`<li><b>${esc(t.title)} — ${esc(t.status)}</b></li>`).join("")||"<li>None</li>"}</ul></div>
+      <div><h4>EOD Additional Work</h4><p class="muted">${esc(eo.additional_work||"Not submitted")}</p></div><div><h4>Pending Reason</h4><p class="muted">${esc(eo.pending_reason||"Not submitted")}</p></div>
+      <div><h4>Issues / Blockers</h4><p class="muted">${esc(eo.blockers||"None reported")}</p></div><div><h4>Tomorrow's Plan</h4><p class="muted">${esc(eo.tomorrow_plan||"Not provided")}</p></div></div>`:
+      `<div style="padding:15px 0;color:#6b7280">Employee has not submitted this day's work yet. Admin data remains 0 until submission.</div>`}
+      </div></div>`;
+  }).join("");
+  const eodBox=document.getElementById("allEodReports");
+  if(eodBox)eodBox.innerHTML=reports.map(r=>{const e=r.eod,emp=r.employee||{};return `<div class="mini-row" style="align-items:flex-start"><span><b>${esc(emp.name||"Employee")}</b><br><small class="muted">${e?"🟢 EOD Submitted":"🟠 EOD Pending"}</small></span><button class="btn" onclick="toggleEodDetail(${emp.id})">${e?"View EOD":"Pending"}</button></div><div id="eodDetail_${emp.id}" class="hidden" style="padding:10px 0 14px;border-bottom:1px solid var(--border)"><div class="report-list"><div><h4>Additional Work</h4><p class="muted">${esc(e?.additional_work||"Not submitted")}</p></div><div><h4>Pending Reason</h4><p class="muted">${esc(e?.pending_reason||"Not submitted")}</p></div><div><h4>Issues / Blockers</h4><p class="muted">${esc(e?.blockers||"None reported")}</p></div><div><h4>Tomorrow's Plan</h4><p class="muted">${esc(e?.tomorrow_plan||"Not provided")}</p></div></div></div>`}).join("");
+  renderTeamOverview();
+  renderAssignmentCenter();
+}
+document.getElementById("dateSelect").onchange=()=>changeDate();
+document.getElementById("employeeSelect").onchange=async e=>{
+  selected=Number(e.target.value);
+  if(isAdmin()){await fetchAdminReports();showAdminReports();}
+  else{await fetchEmployeeDay(currentEmp(),selectedDate);renderEmployee();}
+};
+</script>
+
 </body>
 </html>
