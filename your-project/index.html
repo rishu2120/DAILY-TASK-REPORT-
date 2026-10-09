@@ -110,9 +110,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
   <div class="section-head">
     <div><h3>Team Reporting Center</h3><span class="muted">All employees' daily reporting, EOD submissions and detailed work summary</span></div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
-      <button class="btn" id="adminEodExportBtn">📝 Export All EOD</button>
-      <button class="btn primary" id="adminDetailedPdfBtn">🖨 Detailed PDF</button>
-      <button class="btn primary" id="adminDetailedExcelBtn">📊 Detailed Excel</button>
+      <button class="btn primary" id="adminExportMenuBtn">Export ▾</button>
     </div>
   </div>
 
@@ -177,9 +175,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
       <button class="close" onclick="closeModal('overallExportModal')">×</button>
     </div>
     <div style="display:grid;gap:9px">
-      <button class="btn" onclick="printOverallReport()">🖨 Print / Save Overall PDF</button>
-      <button class="btn" onclick="exportOverallCSV()">📋 Export Overall CSV</button>
-      <button class="btn primary" onclick="exportOverallXLSX()">📊 Export Overall Excel (XLSX)</button>
+      <button class="btn" onclick="printTeamSummaryPDF()">🖨 Normal PDF — Overall Team Summary</button>
+      <button class="btn" onclick="printOverallReport()">📄 Detailed PDF — Employee-wise Reports</button>
+      <button class="btn primary" onclick="exportOverallXLSX()">📊 Detailed Excel (XLSX)</button>
     </div>
   </div>
 </div>
@@ -311,6 +309,11 @@ function refreshSelect(){
   let s=document.getElementById("employeeSelect");
   s.innerHTML=`<option value="-1">All Employees</option>`+employees.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join("");
   s.value=selected;
+}
+function getReportEmployees(){
+  if(!isAdmin() || selected===-1) return employees.slice();
+  const employee=employees[selected];
+  return employee ? [employee] : [];
 }
 
 function render(){
@@ -445,7 +448,8 @@ function deleteAssignedTask(empId,index){
 function renderAdminReports(){
   if(isAdmin())renderAssignmentCenter();
   if(!isAdmin())return;
-  const reports=employees.map(e=>reportData(e));
+  const reportEmployees=getReportEmployees();
+  const reports=reportEmployees.map(e=>reportData(e));
   const total=reports.reduce((n,r)=>n+r.ts.length,0);
   const done=reports.reduce((n,r)=>n+r.done.length,0);
   const panel=document.getElementById("adminReportsPanel");
@@ -454,7 +458,7 @@ function renderAdminReports(){
   const taskCount=document.getElementById("teamTaskCount");
   const doneCount=document.getElementById("teamDoneCount");
   const pct=document.getElementById("teamPct");
-  if(empCount)empCount.textContent=employees.length;
+  if(empCount)empCount.textContent=reportEmployees.length;
   if(taskCount)taskCount.textContent=total;
   if(doneCount)doneCount.textContent=done;
   if(pct)pct.textContent=(total?Math.round(done/total*100):0)+"%";
@@ -522,35 +526,42 @@ function renderReport(){let emp=isAdmin()?employees[selected]:currentEmp(),d=get
 function renderHistory(){let emp=isAdmin()?employees[selected]:currentEmp(),rows=[];for(let n=0;n<5;n++){let dt=new Date(selectedDate);dt.setDate(dt.getDate()-n);let x=extra[dayKey(emp,dt)],total=x?.tasks?.length||[12,10,14,9,11][n],done=x?x.tasks.filter(t=>t.status==="Completed").length:[7,9,10,8,7][n],pend=total-done,p=Math.round(done/total*100);rows.push(`<tr><td>${pretty(dt)}</td><td>${total}</td><td class="green">${done}</td><td class="orange">${pend}</td><td>${p}%</td><td>${x?.eod?.submitted?"🟢 Submitted":"—"}</td><td><button class="btn" onclick="loadHistory(${n})">View</button></td></tr>`)}document.getElementById("historyBody").innerHTML=rows.join("")}
 function loadHistory(n){selectedDate=new Date(selectedDate);selectedDate.setDate(selectedDate.getDate()-n);render();window.scrollTo({top:0,behavior:"smooth"})}
 function renderTeamOverview(){
- if(!isAdmin())return;
- document.getElementById("teamRows").innerHTML=employees.map((e,i)=>{
-   let d=getData(e,selectedDate),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pend=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress"),p=ts.length?Math.round(done.length/ts.length*100):0,eod=d.eod||{};
-   const completedList=done.length?done.map(t=>`<li>${esc(t.title)}</li>`).join(""):"<li>None</li>";
-   const pendingList=pend.length?pend.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join(""):"<li>None</li>";
-   return `<div class="employee-row">
-     <div class="employee-name">
-       ${esc(e.name)}<br><small class="muted">${esc(e.role)}</small>
-       <details><summary>View Today's Detailed Report</summary>
-         <div class="employee-breakdown">
-           <div class="employee-breakdown-grid">
-             <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
-             <div><h4>Pending / In Progress (${pend.length})</h4><ul>${pendingList}</ul></div>
-             <div><h4>EOD Report</h4>
-               <p><b>Status:</b> ${eod.submitted?"Submitted":"Not Submitted"}</p>
-               <p><b>Day Status:</b> ${esc(eod.status||"—")}</p>
-               <p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p>
-               <p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p>
-               <p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p>
-               <p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p>
-               <p><b>Submitted:</b> ${esc(eod.time||"—")}</p>
-             </div>
-           </div>
-         </div>
-       </details>
-     </div>
-     <div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pend.length}</div><div class="blue">${ip.length}</div><div><b>${p}%</b></div>
-   </div>`
- }).join("")
+  if(!isAdmin())return;
+  const reportEmployees=getReportEmployees();
+  let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
+  const rows=reportEmployees.map((e)=>{
+    let d=getData(e,selectedDate),ts=d.tasks,done=ts.filter(t=>t.status==="Completed"),pend=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress"),p=ts.length?Math.round(done.length/ts.length*100):0,eod=d.eod||{};
+    grandTotal+=ts.length;grandDone+=done.length;grandPending+=pend.length;grandProgress+=ip.length;
+    const completedList=done.length?done.map(t=>`<li>${esc(t.title)}</li>`).join(""):"<li>None</li>";
+    const pendingList=pend.length?pend.map(t=>`<li>${esc(t.title)} — ${esc(t.status)}</li>`).join(""):"<li>None</li>";
+    return `<div class="employee-row">
+      <div class="employee-name">
+        ${esc(e.name)}<br><small class="muted">${esc(e.role)}</small>
+        <details><summary>View Today's Detailed Report</summary>
+          <div class="employee-breakdown">
+            <div class="employee-breakdown-grid">
+              <div><h4>Completed Work (${done.length})</h4><ul>${completedList}</ul></div>
+              <div><h4>Pending / In Progress (${pend.length})</h4><ul>${pendingList}</ul></div>
+              <div><h4>EOD Report</h4>
+                <p><b>Status:</b> ${eod.submitted?"Submitted":"Not Submitted"}</p>
+                <p><b>Day Status:</b> ${esc(eod.status||"—")}</p>
+                <p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p>
+                <p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p>
+                <p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p>
+                <p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p>
+                <p><b>Submitted:</b> ${esc(eod.time||"—")}</p>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div>${esc(e.email||"—")}</div><div>${ts.length}</div><div class="green">${done.length}</div><div class="orange">${pend.length}</div><div class="blue">${ip.length}</div><div><b>${p}%</b></div>
+    </div>`;
+  }).join("");
+  const totalRow=selected===-1?`<div class="employee-row" style="font-weight:800;background:#f8f9fc;border-radius:8px;padding:12px 8px">
+    <div>TEAM TOTAL</div><div>All Employees</div><div>${grandTotal}</div><div class="green">${grandDone}</div><div class="orange">${grandPending}</div><div class="blue">${grandProgress}</div><div><b>${grandTotal?Math.round(grandDone/grandTotal*100):0}%</b></div>
+  </div>`:"";
+  document.getElementById("teamRows").innerHTML=rows+totalRow;
 }
 function toggleTask(i){
  let emp=isAdmin()?employees[selected]:currentEmp(),d=getData(emp),t=d.tasks[i];
@@ -706,7 +717,7 @@ function exportExcel(){
 function exportAllEODCSV(){
   if(!isAdmin())return;
   const rows=[["TEAM EOD REPORTS"],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Work Submitted","EOD Status","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status","Submitted At"]];
-  employees.forEach(e=>{
+  getReportEmployees().forEach(e=>{
     const r=reportData(e),d=r.d,eod=d.eod||{},ip=r.ts.filter(t=>t.status==="In Progress").length;
     rows.push([e.name,e.email||"",e.role||"",r.submission?.submitted&&!r.submission?.needsResubmit?"Submitted":"Not Submitted",eod.submitted?"Submitted":"Not Submitted",r.done.length,r.pending.length,ip,r.pct+"%",eod.additional||"",eod.pendingReason||"",eod.blockers||"",eod.tomorrowPlan||"",eod.status||"",eod.time||""]);
   });
@@ -717,7 +728,7 @@ function exportAllEODCSV(){
 function overallRows(){
   const rows=[["OVERALL TEAM REPORT"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
   let grandTotal=0,grandDone=0,grandPending=0,grandProgress=0;
-  employees.forEach(e=>{
+  getReportEmployees().forEach(e=>{
     const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;
     grandTotal+=r.ts.length;grandDone+=r.done.length;grandPending+=r.pending.length;grandProgress+=ip;
     rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"]);
@@ -728,11 +739,11 @@ function overallRows(){
 function exportOverallCSV(){
  if(!isAdmin())return;
  const rows=[["OVERALL TEAM REPORT"],["Date",pretty(selectedDate)],[],["TEAM SUMMARY"],["Employee","Email","Designation","Total Tasks","Completed","Pending","In Progress","Completion %","EOD Status"]];
- employees.forEach(e=>{const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"])});
+ getReportEmployees().forEach(e=>{const r=reportData(e),ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",e.role||"",r.ts.length,r.done.length,r.pending.length,ip,r.pct+"%",r.d.eod?.submitted?"Submitted":"Pending"])});
  rows.push([],["DETAILED TASK REPORT"],["Employee","Email","Task","Priority","Status","Due Time","Category"]);
- employees.forEach(e=>{const r=reportData(e);r.ts.forEach(t=>rows.push([e.name,e.email||"",t.title,t.priority,t.status,t.due||"",t.category||""]))});
+ getReportEmployees().forEach(e=>{const r=reportData(e);r.ts.forEach(t=>rows.push([e.name,e.email||"",t.title,t.priority,t.status,t.due||"",t.category||""]))});
  rows.push([],["EOD REPORTS"],["Employee","Email","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status","Submitted At"]);
- employees.forEach(e=>{const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted",d.eod?.time||""])});
+ getReportEmployees().forEach(e=>{const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;rows.push([e.name,e.email||"",r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted",d.eod?.time||""])});
  download(rowsToCSV(rows),"overall-team-report.csv","text/csv;charset=utf-8");closeModal("overallExportModal");showToast("Detailed overall CSV exported")
 }
 function makeOverallWorkbook(){
@@ -749,7 +760,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,summary,"Overall Summary");
 
   const taskRows=[["ALL TEAM TASK DETAILS"],[],["Date",pretty(selectedDate)],[],["Employee","Email","Designation","Task","Priority","Status","Due Time","Category","Additional Work","Pending Reason","Blockers","Tomorrow Plan"]];
-  employees.forEach(e=>{
+  getReportEmployees().forEach(e=>{
     const r=reportData(e),d=r.d;
     r.ts.forEach(t=>taskRows.push([e.name,e.email||"",e.role||"",t.title,t.priority,t.status,t.due||"",t.category,d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||""]));
   });
@@ -761,7 +772,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,details,"All Tasks");
 
   const eodRows=[["TEAM EOD REPORTS"],[],["Employee","Email","Date","Completed","Pending","In Progress","Completion %","Additional Work","Pending Reason","Blockers","Tomorrow Plan","Day Status"]];
-  employees.forEach(e=>{
+  getReportEmployees().forEach(e=>{
     const r=reportData(e),d=r.d,ip=r.ts.filter(t=>t.status==="In Progress").length;
     eodRows.push([e.name,e.email||"",pretty(selectedDate),r.done.length,r.pending.length,ip,r.pct+"%",d.eod?.additional||"",d.eod?.pendingReason||"",d.eod?.blockers||"",d.eod?.tomorrowPlan||"",d.eod?.status||"Not submitted"]);
   });
@@ -772,7 +783,7 @@ function makeOverallWorkbook(){
   XLSX.utils.book_append_sheet(wb,eod,"EOD Reports");
 
   const breakdownRows=[["TODAY'S EMPLOYEE BREAKDOWN"],[],["Employee","Email","Designation","Completed Work","Pending / In Progress","Additional Work","Pending Reason","Blockers","Tomorrow Plan","EOD Status","Submitted At"]];
-  employees.forEach(e=>{
+  getReportEmployees().forEach(e=>{
     const r=reportData(e),d=r.d,eod=d.eod||{};
     const doneText=r.done.map(t=>t.title).join(" | ")||"None";
     const pendingText=r.pending.map(t=>t.title+" ("+t.status+")").join(" | ")||"None";
@@ -794,11 +805,32 @@ function exportOverallXLSX(){
   XLSX.writeFile(wb,`overall-team-report-${fmt(selectedDate)}.xlsx`);
   closeModal("overallExportModal");showToast("Formatted overall Excel report exported");
 }
+function printTeamSummaryPDF(){
+  if(!isAdmin())return;
+  try{
+    const reportEmployees=getReportEmployees();
+    let total=0,doneTotal=0,pendingTotal=0,progressTotal=0;
+    const body=reportEmployees.map(e=>{
+      const d=getData(e,selectedDate),ts=d.tasks||[],done=ts.filter(t=>t.status==="Completed"),pending=ts.filter(t=>t.status!=="Completed"),ip=ts.filter(t=>t.status==="In Progress").length,pct=ts.length?Math.round(done.length/ts.length*100):0;
+      total+=ts.length;doneTotal+=done.length;pendingTotal+=pending.length;progressTotal+=ip;
+      return `<tr><td>${esc(e.name)}</td><td>${esc(e.email||"—")}</td><td>${ts.length}</td><td>${done.length}</td><td>${pending.length}</td><td>${ip}</td><td>${pct}%</td></tr>`;
+    }).join("");
+    const totalRow=selected===-1?`<tr class="total"><td>TEAM TOTAL</td><td>All Employees</td><td>${total}</td><td>${doneTotal}</td><td>${pendingTotal}</td><td>${progressTotal}</td><td>${total?Math.round(doneTotal/total*100):0}%</td></tr>`:"";
+    const html=`<!doctype html><html><head><meta charset="UTF-8"><title>Overall Team Summary - ${pretty(selectedDate)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:24px}h1{color:#4f46e5;margin:0 0 6px;font-size:22px}.meta{color:#6b7280;font-size:12px;margin-bottom:18px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #e7eaf0;padding:10px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.total{font-weight:800;background:#f3f4f6}@media print{body{padding:12px}tr{page-break-inside:avoid}}
+      </style></head><body><h1>Overall Team Summary</h1><div class="meta"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Employees:</b> ${reportEmployees.length}</div><table><thead><tr><th>Employee</th><th>Email</th><th>Total</th><th>Done</th><th>Pending</th><th>In Progress</th><th>%</th></tr></thead><tbody>${body}${totalRow}</tbody></table></body></html>`;
+    let old=document.getElementById("__dwt_summary_print_frame");if(old)old.remove();
+    const frame=document.createElement("iframe");frame.id="__dwt_summary_print_frame";frame.style.position="fixed";frame.style.right="0";frame.style.bottom="0";frame.style.width="1px";frame.style.height="1px";frame.style.border="0";frame.style.opacity="0";document.body.appendChild(frame);
+    frame.onload=()=>setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(err){showToast("PDF print could not open. Please try again.")}},250);
+    frame.srcdoc=html;closeModal("overallExportModal");
+  }catch(err){console.error(err);showToast("Unable to prepare team summary PDF.")}
+}
 function printOverallReport(){
   if(!isAdmin())return;
   try{
     let sections="";
-    employees.forEach(e=>{
+    const reportEmployees=getReportEmployees();
+    reportEmployees.forEach(e=>{
       const r=reportData(e),d=r.d,eod=d.eod||{};
       sections+=`<section class="emp"><h2>${esc(e.name)} <span>${esc(e.role||"")}</span></h2>
       <p><b>Email:</b> ${esc(e.email||"")} &nbsp; <b>Total Submitted:</b> ${r.ts.length} &nbsp; <b>Completed:</b> ${r.done.length} &nbsp; <b>Pending:</b> ${r.pending.length} &nbsp; <b>Completion:</b> ${r.pct}%</p>
@@ -807,7 +839,7 @@ function printOverallReport(){
       <div class="eod"><h3>EOD Report</h3><p><b>Additional Work:</b> ${esc(eod.additional||"—")}</p><p><b>Pending Reason:</b> ${esc(eod.pendingReason||"—")}</p><p><b>Blockers:</b> ${esc(eod.blockers||"—")}</p><p><b>Tomorrow:</b> ${esc(eod.tomorrowPlan||d.tomorrow.join(", ")||"—")}</p><p><b>Day Status:</b> ${esc(eod.status||"—")}</p></div></section>`;
     });
     const html=`<!doctype html><html><head><meta charset="UTF-8"><title>Overall Team Report - ${pretty(selectedDate)}</title><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:28px}h1{color:#4f46e5;margin:0 0 5px}h2{color:#4f46e5;margin:0 0 6px;font-size:18px}h2 span{font-size:11px;color:#6b7280;font-weight:normal}.sub{color:#6b7280;font-size:11px}.emp{border:1px solid #dfe3ea;border-radius:10px;padding:15px;margin:18px 0;page-break-inside:avoid}.emp h3{font-size:13px;margin:13px 0 7px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #dfe3ea;padding:6px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.eod{background:#f8f9fc;border-radius:8px;padding:10px;font-size:11px;line-height:1.5}.footer{font-size:9px;color:#9ca3af;text-align:center;margin-top:20px}@media print{body{padding:15px}.emp{page-break-inside:avoid}tr{page-break-inside:avoid}}</style></head><body><h1>Overall Team Daily Work Report</h1><p class="sub"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Total Employees:</b> ${employees.length}</p>${sections}<div class="footer">Generated by Daily Work Tracker</div></body></html>`;
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18202f;padding:28px}h1{color:#4f46e5;margin:0 0 5px}h2{color:#4f46e5;margin:0 0 6px;font-size:18px}h2 span{font-size:11px;color:#6b7280;font-weight:normal}.sub{color:#6b7280;font-size:11px}.emp{border:1px solid #dfe3ea;border-radius:10px;padding:15px;margin:18px 0;page-break-inside:avoid}.emp h3{font-size:13px;margin:13px 0 7px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #dfe3ea;padding:6px;text-align:left;vertical-align:top}th{background:#4f46e5;color:#fff}.eod{background:#f8f9fc;border-radius:8px;padding:10px;font-size:11px;line-height:1.5}.footer{font-size:9px;color:#9ca3af;text-align:center;margin-top:20px}@media print{body{padding:15px}.emp{page-break-inside:avoid}tr{page-break-inside:avoid}}</style></head><body><h1>Overall Team Daily Work Report</h1><p class="sub"><b>Date:</b> ${pretty(selectedDate)} &nbsp; | &nbsp; <b>Total Employees:</b> ${reportEmployees.length}</p>${sections}<div class="footer">Generated by Daily Work Tracker</div></body></html>`;
     let old=document.getElementById("__dwt_overall_print_frame");if(old)old.remove();
     const frame=document.createElement("iframe");frame.id="__dwt_overall_print_frame";frame.style.position="fixed";frame.style.right="0";frame.style.bottom="0";frame.style.width="1px";frame.style.height="1px";frame.style.border="0";frame.style.opacity="0";document.body.appendChild(frame);
     frame.onload=()=>setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(err){showToast("PDF print could not open. Please try again.")}},250);
@@ -958,9 +990,9 @@ document.getElementById("submitWorkBtn").onclick=submitTodayWork;document.getEle
 document.getElementById("search").oninput=renderTasks;document.getElementById("statusFilter").onchange=renderTasks;document.getElementById("priorityFilter").onchange=renderTasks;
 document.getElementById("eodJump").onclick=()=>document.getElementById("eodSection").scrollIntoView({behavior:"smooth"});document.getElementById("pendingJump").onclick=()=>document.getElementById("pendingSection").scrollIntoView({behavior:"smooth"});
 document.getElementById("exportBtn").onclick=openExport;document.getElementById("exportBtn2").onclick=openExport;document.getElementById("manageTeamBtn").onclick=openTeam;document.getElementById("addMemberBtn").onclick=addMember;
-document.getElementById("adminEodExportBtn").onclick=exportAllEODCSV;
-document.getElementById("adminDetailedPdfBtn").onclick=()=>printOverallReport();
-document.getElementById("adminDetailedExcelBtn").onclick=()=>exportOverallXLSX();document.getElementById("changePassBtn").onclick=changePassword;document.getElementById("savePass").onclick=savePassword;document.getElementById("overallBtn").onclick=()=>{document.getElementById("adminReportsPanel").scrollIntoView({behavior:"smooth"});};document.getElementById("eodReportsBtn").onclick=()=>{document.getElementById("allEodReports").scrollIntoView({behavior:"smooth"});};
+document.getElementById("adminExportMenuBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
+
+document.getElementById("changePassBtn").onclick=changePassword;document.getElementById("savePass").onclick=savePassword;document.getElementById("overallBtn").onclick=()=>{document.getElementById("adminReportsPanel").scrollIntoView({behavior:"smooth"});};document.getElementById("eodReportsBtn").onclick=()=>{document.getElementById("allEodReports").scrollIntoView({behavior:"smooth"});};
 document.getElementById("overallExportBtn").onclick=()=>document.getElementById("overallExportModal").classList.add("show");
 document.querySelectorAll(".modal-backdrop").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("show")}));
 </script>

@@ -16,15 +16,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const db = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || "root",
+    const db = mysql.createPool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 14335),
+    user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || "daily_work_tracker",
+
+    ssl: {
+        rejectUnauthorized: false
+    },
+
     waitForConnections: true,
     connectionLimit: 10
 });
+
 
 /* =========================================================
    HEALTH
@@ -853,6 +859,7 @@ io.on("connection", socket => {
 ========================================================= */
 
 const PORT = process.env.PORT || 3000;
+
 
 server.listen(PORT, () => {
     console.log(
